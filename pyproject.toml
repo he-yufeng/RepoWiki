@@ -37,6 +37,7 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "python-dotenv>=1.0",
     "networkx>=3.0",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]

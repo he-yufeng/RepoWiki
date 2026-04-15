@@ -79,7 +79,8 @@ class DependencyGraph:
             return []
         try:
             scores = nx.pagerank(self.graph, alpha=0.85)
-        except nx.PowerIterationFailedConvergence:
+        except Exception:
+            # fallback: uniform scores if PageRank fails (missing numpy, convergence, etc.)
             scores = {n: 1.0 / len(self.graph) for n in self.graph}
         return sorted(scores.items(), key=lambda x: -x[1])
 
