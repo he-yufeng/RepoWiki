@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "repowiki"
+version = "0.1.0"
+description = "Open-source DeepWiki alternative - generate comprehensive wiki documentation for any codebase"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Yufeng He", email = "40085740+he-yufeng@users.noreply.github.com" },
+]
+keywords = [
+    "wiki", "documentation", "codebase", "code-analysis", "deepwiki",
+    "repository", "ai", "llm", "developer-tools",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "click>=8.0",
+    "rich>=13.0",
+    "litellm>=1.40.0",
+    "pydantic>=2.0",
+    "aiosqlite>=0.20.0",
+    "python-dotenv>=1.0",
+    "networkx>=3.0",
+]
+
+[project.optional-dependencies]
+web = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.9",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+repowiki = "repowiki.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/he-yufeng/RepoWiki"
+Repository = "https://github.com/he-yufeng/RepoWiki"
+Issues = "https://github.com/he-yufeng/RepoWiki/issues"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]  # line length handled per-file; prompts and HTML templates naturally long
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repowiki"]
