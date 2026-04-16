@@ -79,13 +79,17 @@ Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby
 
 | 提供商 | 模型 | 别名 |
 |--------|------|------|
-| DeepSeek | deepseek-chat (V3.2) | `deepseek` |
-| OpenAI | gpt-5.4 | `gpt` |
-| OpenAI | gpt-5.4-mini | `gpt-mini` |
-| Anthropic | claude-sonnet-4-6 | `claude` |
-| Google | gemini-2.5-flash | `gemini` |
-| Google | gemini-2.5-pro | `gemini-pro` |
-| 阿里云 | qwen3.5-plus | `qwen` |
+| Anthropic | Claude Opus 4.6 | `opus` |
+| Anthropic | Claude Sonnet 4.6 | `claude` |
+| OpenAI | GPT-5.4 | `gpt` |
+| OpenAI | GPT-5.4 Mini | `gpt-mini` |
+| Google | Gemini 3.1 Pro | `gemini` |
+| Google | Gemini 2.5 Flash | `gemini-flash` |
+| DeepSeek | DeepSeek V3.2 | `deepseek` |
+| 阿里云 | Qwen3.5 Plus | `qwen` |
+| 月之暗面 | Kimi K2.6 | `kimi` |
+| 智谱 | GLM-5 | `glm` |
+| MiniMax | M2.7 | `minimax` |
 
 ## 工作原理
 

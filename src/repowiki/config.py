@@ -17,14 +17,16 @@ _CONFIG_FILE = _CONFIG_DIR / "config.json"
 # shortcuts so users don't have to type full provider/model strings
 MODEL_ALIASES = {
     "deepseek": "deepseek/deepseek-chat",
+    "opus": "anthropic/claude-opus-4-6",
     "claude": "anthropic/claude-sonnet-4-6",
     "gpt": "gpt-5.4",
     "gpt-mini": "gpt-5.4-mini",
-    "gemini": "gemini/gemini-2.5-flash",
-    "gemini-pro": "gemini/gemini-2.5-pro",
+    "gemini": "gemini/gemini-3.1-pro-preview",
+    "gemini-flash": "gemini/gemini-2.5-flash",
     "qwen": "openai/qwen3.5-plus",
-    "kimi": "openai/moonshot-v1-auto",
-    "glm": "openai/glm-4-plus",
+    "kimi": "openai/kimi-k2.6",
+    "glm": "openai/glm-5",
+    "minimax": "openai/MiniMax-M2.7",
 }
 
 

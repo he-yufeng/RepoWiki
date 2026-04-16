@@ -36,12 +36,16 @@ export default function SettingsModal({ onClose }: Props) {
               className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:border-blue-500 outline-none"
             >
               <option value="deepseek">DeepSeek V3.2</option>
+              <option value="opus">Claude Opus 4.6</option>
+              <option value="claude">Claude Sonnet 4.6</option>
               <option value="gpt">GPT-5.4</option>
               <option value="gpt-mini">GPT-5.4 Mini</option>
-              <option value="claude">Claude Sonnet 4.6</option>
-              <option value="gemini">Gemini 2.5 Flash</option>
-              <option value="gemini-pro">Gemini 2.5 Pro</option>
+              <option value="gemini">Gemini 3.1 Pro</option>
+              <option value="gemini-flash">Gemini 2.5 Flash</option>
               <option value="qwen">Qwen3.5 Plus</option>
+              <option value="kimi">Kimi K2.6</option>
+              <option value="glm">GLM-5</option>
+              <option value="minimax">MiniMax M2.7</option>
             </select>
           </div>
 
