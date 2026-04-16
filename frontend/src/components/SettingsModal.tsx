@@ -35,12 +35,13 @@ export default function SettingsModal({ onClose }: Props) {
               onChange={(e) => updateSettings({ model: e.target.value })}
               className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:border-blue-500 outline-none"
             >
-              <option value="deepseek">DeepSeek Chat</option>
-              <option value="gpt4o">GPT-4o</option>
-              <option value="gpt5">GPT-5</option>
-              <option value="claude">Claude Sonnet</option>
-              <option value="gemini">Gemini Flash</option>
-              <option value="qwen">Qwen Plus</option>
+              <option value="deepseek">DeepSeek V3.2</option>
+              <option value="gpt">GPT-5.4</option>
+              <option value="gpt-mini">GPT-5.4 Mini</option>
+              <option value="claude">Claude Sonnet 4.6</option>
+              <option value="gemini">Gemini 2.5 Flash</option>
+              <option value="gemini-pro">Gemini 2.5 Pro</option>
+              <option value="qwen">Qwen3.5 Plus</option>
             </select>
           </div>
 

@@ -79,12 +79,13 @@ Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby
 
 | 提供商 | 模型 | 别名 |
 |--------|------|------|
-| DeepSeek | deepseek-chat | `deepseek` |
-| OpenAI | gpt-4o | `gpt4o` |
-| OpenAI | gpt-5 | `gpt5` |
-| Anthropic | claude-sonnet-4 | `claude` |
+| DeepSeek | deepseek-chat (V3.2) | `deepseek` |
+| OpenAI | gpt-5.4 | `gpt` |
+| OpenAI | gpt-5.4-mini | `gpt-mini` |
+| Anthropic | claude-sonnet-4-6 | `claude` |
 | Google | gemini-2.5-flash | `gemini` |
-| 阿里云 | qwen-plus | `qwen` |
+| Google | gemini-2.5-pro | `gemini-pro` |
+| 阿里云 | qwen3.5-plus | `qwen` |
 
 ## 工作原理
 

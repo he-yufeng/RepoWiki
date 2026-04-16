@@ -79,16 +79,17 @@ Powered by [litellm](https://github.com/BerriAI/litellm), RepoWiki works with 10
 
 | Provider | Model | Alias |
 |----------|-------|-------|
-| DeepSeek | deepseek-chat | `deepseek` |
-| OpenAI | gpt-4o | `gpt4o` |
-| OpenAI | gpt-5 | `gpt5` |
-| Anthropic | claude-sonnet-4 | `claude` |
+| DeepSeek | deepseek-chat (V3.2) | `deepseek` |
+| OpenAI | gpt-5.4 | `gpt` |
+| OpenAI | gpt-5.4-mini | `gpt-mini` |
+| Anthropic | claude-sonnet-4-6 | `claude` |
 | Google | gemini-2.5-flash | `gemini` |
-| Alibaba | qwen-plus | `qwen` |
+| Google | gemini-2.5-pro | `gemini-pro` |
+| Alibaba | qwen3.5-plus | `qwen` |
 
 ```bash
 repowiki config set model deepseek    # use alias
-repowiki scan . -m gpt4o              # or pass directly
+repowiki scan . -m gpt                # or pass directly
 ```
 
 ## Configuration
