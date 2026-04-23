@@ -2,6 +2,10 @@
 
 **Open-source DeepWiki alternative** — generate comprehensive wiki documentation for any codebase from your terminal or browser.
 
+[![PyPI](https://img.shields.io/pypi/v/repowiki.svg)](https://pypi.org/project/repowiki/)
+[![Python](https://img.shields.io/pypi/pyversions/repowiki.svg)](https://pypi.org/project/repowiki/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 [中文文档](README_CN.md)
 
 ## Why RepoWiki?
