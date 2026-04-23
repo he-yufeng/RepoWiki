@@ -2,6 +2,10 @@
 
 **开源 DeepWiki 替代品** — 从终端或浏览器为任意代码仓库生成完整 wiki 文档。
 
+[![PyPI](https://img.shields.io/pypi/v/repowiki.svg)](https://pypi.org/project/repowiki/)
+[![Python](https://img.shields.io/pypi/pyversions/repowiki.svg)](https://pypi.org/project/repowiki/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 [English](README.md)
 
 ## 为什么选 RepoWiki？
