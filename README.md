@@ -163,6 +163,13 @@ cd frontend && npm install && npm run dev
 repowiki serve --port 8000
 ```
 
+## Related Projects
+
+- [**CodeJoust**](https://github.com/he-yufeng/CodeJoust) — once RepoWiki tells you *how* the repo works, CodeJoust helps you change it: race Claude Code, aider, Codex on the same bug in parallel git worktrees, auto-score by tests/cost/diff/time, merge the winner. `pip install codejoust`.
+- [**LiteBench**](https://github.com/he-yufeng/LiteBench) — one-command LLM/agent benchmark. HumanEval/GSM8K/MMLU/MATH-500 built in, plus YAML-defined custom tasks and a single-file HTML dashboard.
+- [**CoreCoder**](https://github.com/he-yufeng/CoreCoder) — Claude Code's architecture distilled to ~1,400 lines of Python, with 7 deep-dive architecture articles.
+- [**AnyCoder**](https://github.com/he-yufeng/AnyCoder) — practical terminal AI coding agent, 100+ model support via litellm.
+
 ## License
 
 MIT
