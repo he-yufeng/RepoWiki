@@ -169,6 +169,40 @@ cd frontend && npm install && npm run dev
 repowiki serve --port 8000
 ```
 
+## GitHub Action
+
+Run RepoWiki on every PR and commit the regenerated wiki back automatically:
+
+```yaml
+# .github/workflows/wiki.yml
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  update-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - uses: he-yufeng/RepoWiki/.github/actions/repowiki-scan@main
+        with:
+          output: docs/wiki
+          since: origin/${{ github.event.pull_request.base.ref }}
+          api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+```
+
+Inputs: `path`, `output`, `format` (markdown/json/html), `language`, `model`,
+`api-key` (required), `since` (incremental ref), `concurrency`,
+`max-context-tokens`, `python-version`, `repowiki-version`. See
+[`.github/actions/repowiki-scan/action.yml`](.github/actions/repowiki-scan/action.yml)
+and the example
+[`.github/workflows/wiki-on-pr.yml`](.github/workflows/wiki-on-pr.yml) for a
+complete PR-bot recipe.
+
 ## Related Projects
 
 - [**CodeJoust**](https://github.com/he-yufeng/CodeJoust) — once RepoWiki tells you *how* the repo works, CodeJoust helps you change it: race Claude Code, aider, Codex, and Gemini on the same bug in parallel git worktrees, auto-score by tests/cost/diff/time, merge the winner. `pip install codejoust`.

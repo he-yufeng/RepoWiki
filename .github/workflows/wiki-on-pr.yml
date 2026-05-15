@@ -1,0 +1,67 @@
+# Example workflow demonstrating how to use the RepoWiki composite action.
+#
+# Drop this file in a downstream repo's .github/workflows/ to:
+#   1. Run an incremental scan when a PR is opened or updated
+#   2. Commit the regenerated wiki back to docs/wiki/ on the PR branch
+#
+# Required: a repo secret named DEEPSEEK_API_KEY (or whichever provider you
+# pick via the `model` input).
+
+name: Update wiki on PR
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - "src/**"
+      - "lib/**"
+      - "app/**"
+      - "**/*.py"
+      - "**/*.ts"
+      - "**/*.tsx"
+
+# allow the workflow to push commits back to the PR branch
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: wiki-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  update-wiki:
+    runs-on: ubuntu-latest
+    # don't loop forever if the bot itself pushes a commit
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          # need full history so --since base..HEAD works
+          fetch-depth: 0
+
+      - name: RepoWiki scan
+        id: wiki
+        uses: ./.github/actions/repowiki-scan
+        with:
+          path: "."
+          output: "docs/wiki"
+          format: "markdown"
+          language: "en"
+          model: "deepseek"
+          # only re-analyse modules touching files changed in this PR
+          since: "origin/${{ github.event.pull_request.base.ref }}"
+          concurrency: "3"
+          api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+
+      - name: Commit wiki updates
+        if: steps.wiki.outputs.changed == 'true'
+        run: |
+          git config user.name "repowiki[bot]"
+          git config user.email "repowiki[bot]@users.noreply.github.com"
+          git add docs/wiki
+          git commit -m "docs: update wiki for PR #${{ github.event.pull_request.number }}"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

@@ -1,0 +1,104 @@
+name: "RepoWiki Scan"
+description: "Generate or update wiki documentation for a codebase using RepoWiki"
+author: "Yufeng He"
+branding:
+  icon: "book-open"
+  color: "blue"
+
+inputs:
+  path:
+    description: "Path to the project to scan (default: repository root)"
+    required: false
+    default: "."
+  output:
+    description: "Output directory for the generated wiki"
+    required: false
+    default: "docs/wiki"
+  format:
+    description: "Output format: markdown, json, or html"
+    required: false
+    default: "markdown"
+  language:
+    description: "Output language (en/zh/ja/ko)"
+    required: false
+    default: "en"
+  model:
+    description: "LLM model alias or full ID (deepseek, gpt, claude, etc.)"
+    required: false
+    default: "deepseek"
+  api-key:
+    description: "API key for the chosen LLM provider (set as a repo secret)"
+    required: true
+  since:
+    description: "Git ref for incremental mode. Empty = full scan."
+    required: false
+    default: ""
+  concurrency:
+    description: "Parallel LLM calls (lower if your provider rate-limits)"
+    required: false
+    default: "5"
+  max-context-tokens:
+    description: "Token budget for project-wide prompts (0 = unlimited)"
+    required: false
+    default: "32000"
+  python-version:
+    description: "Python version to install RepoWiki under"
+    required: false
+    default: "3.12"
+  repowiki-version:
+    description: "Version of repowiki to install (default: latest from PyPI)"
+    required: false
+    default: ""
+
+outputs:
+  output-dir:
+    description: "Path to the generated wiki output directory"
+    value: ${{ inputs.output }}
+  changed-files:
+    description: "Whether the wiki output changed (true/false)"
+    value: ${{ steps.diff.outputs.changed }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install RepoWiki
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.repowiki-version }}" ]; then
+          pip install "repowiki==${{ inputs.repowiki-version }}"
+        else
+          pip install repowiki
+        fi
+
+    - name: Run scan
+      shell: bash
+      env:
+        REPOWIKI_API_KEY: ${{ inputs.api-key }}
+      run: |
+        SINCE_FLAG=""
+        if [ -n "${{ inputs.since }}" ]; then
+          SINCE_FLAG="--since ${{ inputs.since }}"
+        fi
+        repowiki scan "${{ inputs.path }}" \
+          --output "${{ inputs.output }}" \
+          --format "${{ inputs.format }}" \
+          --lang "${{ inputs.language }}" \
+          --model "${{ inputs.model }}" \
+          --concurrency "${{ inputs.concurrency }}" \
+          --max-context-tokens "${{ inputs.max-context-tokens }}" \
+          $SINCE_FLAG
+
+    - name: Detect changes
+      id: diff
+      shell: bash
+      run: |
+        if git diff --quiet -- "${{ inputs.output }}" 2>/dev/null; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi

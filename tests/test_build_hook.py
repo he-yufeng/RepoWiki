@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import shutil
-import subprocess
-import sys
 from pathlib import Path
 
-import pytest
 from click.testing import CliRunner
 
 from repowiki.cli import cli
