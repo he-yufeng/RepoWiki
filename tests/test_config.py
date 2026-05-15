@@ -42,3 +42,30 @@ def test_config_falls_back_to_provider_env(monkeypatch, tmp_path):
 
     cfg = Config.load()
     assert cfg.api_key == "ds-fallback"
+
+
+def test_concurrency_and_token_budget_env(monkeypatch):
+    monkeypatch.setenv("REPOWIKI_CONCURRENCY", "3")
+    monkeypatch.setenv("REPOWIKI_MAX_CONTEXT_TOKENS", "8000")
+
+    cfg = Config.load()
+    assert cfg.concurrency == 3
+    assert cfg.max_context_tokens == 8000
+
+
+def test_concurrency_env_invalid_ignored(monkeypatch):
+    monkeypatch.setenv("REPOWIKI_CONCURRENCY", "not-a-number")
+    cfg = Config.load()
+    assert cfg.concurrency == 5  # default
+
+
+def test_scan_cli_accepts_new_options():
+    """make sure --concurrency and --max-context-tokens are wired up."""
+    from click.testing import CliRunner
+
+    from repowiki.cli import cli
+
+    result = CliRunner().invoke(cli, ["scan", "--help"])
+    assert result.exit_code == 0
+    assert "--concurrency" in result.output
+    assert "--max-context-tokens" in result.output

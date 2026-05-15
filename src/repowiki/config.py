@@ -47,6 +47,9 @@ class Config:
     max_files: int = 1000
     output_dir: str = "./wiki"
     concurrency: int = 5
+    # token budget for the slice of project context we ship to the LLM
+    # (overview / architecture / reading-guide passes). 0 = unlimited.
+    max_context_tokens: int = 32_000
 
     @classmethod
     def load(cls) -> Config:
@@ -69,6 +72,16 @@ class Config:
             cfg.api_base = val
         if val := os.getenv("REPOWIKI_LANG"):
             cfg.language = val
+        if val := os.getenv("REPOWIKI_CONCURRENCY"):
+            try:
+                cfg.concurrency = max(1, int(val))
+            except ValueError:
+                pass
+        if val := os.getenv("REPOWIKI_MAX_CONTEXT_TOKENS"):
+            try:
+                cfg.max_context_tokens = max(0, int(val))
+            except ValueError:
+                pass
 
         # fall back to common provider keys
         if not cfg.api_key:

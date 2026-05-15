@@ -36,9 +36,18 @@ def cli():
 )
 @click.option("-l", "--lang", default=None, help="Output language (en/zh/ja/ko)")
 @click.option("-m", "--model", default=None, help="LLM model name or alias")
+@click.option(
+    "-c", "--concurrency", default=None, type=int,
+    help="Parallel LLM calls (default 5; lower if your provider rate-limits)",
+)
+@click.option(
+    "--max-context-tokens", default=None, type=int,
+    help="Token budget for project-wide prompts. 0 = unlimited (default 32000)",
+)
 @click.option("--open", "open_browser", is_flag=True, help="Open HTML output in browser")
 def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
-         model: str | None, open_browser: bool):
+         model: str | None, concurrency: int | None,
+         max_context_tokens: int | None, open_browser: bool):
     """Scan a local directory or GitHub URL and generate wiki documentation."""
     cfg = Config.load()
     if lang:
@@ -47,6 +56,10 @@ def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
         cfg.model = resolve_model(model)
     if output:
         cfg.output_dir = output
+    if concurrency is not None:
+        cfg.concurrency = max(1, concurrency)
+    if max_context_tokens is not None:
+        cfg.max_context_tokens = max(0, max_context_tokens)
 
     with console.status("[bold cyan]Scanning project..."):
         if _is_url(path_or_url):
