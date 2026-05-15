@@ -14,19 +14,22 @@ load_dotenv()
 _CONFIG_DIR = Path.home() / ".repowiki"
 _CONFIG_FILE = _CONFIG_DIR / "config.json"
 
-# shortcuts so users don't have to type full provider/model strings
+# shortcuts so users don't have to type full provider/model strings.
+# values intentionally point at well-known stable model IDs that litellm recognises.
+# update freely -- aliases are advisory, full model strings always work.
 MODEL_ALIASES = {
     "deepseek": "deepseek/deepseek-chat",
-    "opus": "anthropic/claude-opus-4-6",
-    "claude": "anthropic/claude-sonnet-4-6",
-    "gpt": "gpt-5.4",
-    "gpt-mini": "gpt-5.4-mini",
-    "gemini": "gemini/gemini-3.1-pro-preview",
-    "gemini-flash": "gemini/gemini-2.5-flash",
-    "qwen": "openai/qwen3.5-plus",
-    "kimi": "openai/kimi-k2.6",
-    "glm": "openai/glm-5",
-    "minimax": "openai/MiniMax-M2.7",
+    "deepseek-coder": "deepseek/deepseek-coder",
+    "opus": "anthropic/claude-opus-4-5",
+    "claude": "anthropic/claude-sonnet-4-5",
+    "haiku": "anthropic/claude-haiku-4-5",
+    "gpt": "openai/gpt-4o",
+    "gpt-mini": "openai/gpt-4o-mini",
+    "gemini": "gemini/gemini-1.5-pro",
+    "gemini-flash": "gemini/gemini-1.5-flash",
+    "qwen": "openrouter/qwen/qwen-2.5-72b-instruct",
+    "kimi": "moonshot/moonshot-v1-128k",
+    "glm": "openai/glm-4-plus",
 }
 
 

@@ -19,7 +19,7 @@
 | Export | Web only | Web only | **Markdown / JSON / HTML** |
 | Reading guide | No | No | **PageRank + guided path** |
 | Terminal Q&A | No | No | **`repowiki chat`** |
-| Dependencies | N/A | Docker + PostgreSQL | **Python + SQLite** |
+| Dependencies | N/A | Docker + FAISS + Node | **Python + SQLite** |
 
 ## Quick Start
 
@@ -84,17 +84,20 @@ Powered by [litellm](https://github.com/BerriAI/litellm), RepoWiki works with 10
 
 | Provider | Model | Alias |
 |----------|-------|-------|
-| Anthropic | Claude Opus 4.6 | `opus` |
-| Anthropic | Claude Sonnet 4.6 | `claude` |
-| OpenAI | GPT-5.4 | `gpt` |
-| OpenAI | GPT-5.4 Mini | `gpt-mini` |
-| Google | Gemini 3.1 Pro | `gemini` |
-| Google | Gemini 2.5 Flash | `gemini-flash` |
-| DeepSeek | DeepSeek V3.2 | `deepseek` |
-| Alibaba | Qwen3.5 Plus | `qwen` |
-| Moonshot | Kimi K2.6 | `kimi` |
-| Zhipu | GLM-5 | `glm` |
-| MiniMax | M2.7 | `minimax` |
+| Anthropic | Claude Opus 4.5 | `opus` |
+| Anthropic | Claude Sonnet 4.5 | `claude` |
+| Anthropic | Claude Haiku 4.5 | `haiku` |
+| OpenAI | GPT-4o | `gpt` |
+| OpenAI | GPT-4o Mini | `gpt-mini` |
+| Google | Gemini 1.5 Pro | `gemini` |
+| Google | Gemini 1.5 Flash | `gemini-flash` |
+| DeepSeek | DeepSeek Chat | `deepseek` |
+| DeepSeek | DeepSeek Coder | `deepseek-coder` |
+| Alibaba | Qwen 2.5 72B | `qwen` |
+| Moonshot | Kimi 128k | `kimi` |
+| Zhipu | GLM-4 Plus | `glm` |
+
+Aliases map to litellm model IDs — set `MODEL_ALIASES` in `config.py` or pass any litellm-supported string directly with `-m`.
 
 ```bash
 repowiki config set model deepseek    # use alias
