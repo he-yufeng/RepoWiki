@@ -11,7 +11,6 @@ from repowiki.core.cache import Cache
 from repowiki.core.models import FileInfo, ProjectContext
 from repowiki.ingest.git_diff import changed_paths_since
 
-
 # --- git_diff helper ---------------------------------------------------------
 
 def _git(args: list[str], cwd: Path) -> None:

@@ -1,8 +1,5 @@
 """Config + alias resolution tests."""
-import os
-from pathlib import Path
 
-import pytest
 
 from repowiki.config import MODEL_ALIASES, Config, resolve_model
 

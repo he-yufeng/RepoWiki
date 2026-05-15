@@ -1,8 +1,6 @@
 """Smoke test that the chat CLI command is wired up end-to-end."""
 from __future__ import annotations
 
-from pathlib import Path
-
 from click.testing import CliRunner
 
 from repowiki.cli import cli

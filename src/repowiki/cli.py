@@ -336,6 +336,7 @@ def chat(path_or_url: str, model: str | None, lang: str | None, top_k: int):
     console.print("[dim]Type your question, or 'exit' / Ctrl-D to quit.[/]\n")
 
     import asyncio
+
     from repowiki.llm.client import LLMClient, LLMError
     from repowiki.llm.prompts import build_chat_prompt
 

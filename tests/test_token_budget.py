@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from repowiki.core.analyzer import Analyzer, _approx_tokens
-from repowiki.core.cache import Cache
 from repowiki.core.models import FileInfo, ProjectContext
 
 
