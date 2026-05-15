@@ -68,11 +68,16 @@ class Analyzer:
         # 1. prepare context
         progress("Preparing file context...")
         key_files_text = self._build_key_files_context(project)
-        tree_hash = content_hash(project.file_tree + key_files_text)
+        # structure_hash captures only the project shape (paths + sizes), so
+        # editing the body of a single source file doesn't invalidate the
+        # arch / guide passes. overview_hash also folds in README / pyproject
+        # because those genuinely change the elevator pitch.
+        structure_hash = self._structure_hash(project)
+        overview_hash = self._overview_hash(project, structure_hash)
 
         # 2. generate overview
         progress("Generating project overview...")
-        overview = await self._generate_overview(project, key_files_text, tree_hash)
+        overview = await self._generate_overview(project, key_files_text, overview_hash)
 
         # 3. group files into modules and analyze each
         modules_map = self._group_into_modules(project.files)
@@ -83,12 +88,12 @@ class Analyzer:
 
         # 4. generate architecture diagram
         progress("Detecting architecture...")
-        architecture = await self._generate_architecture(project, key_files_text, tree_hash)
+        architecture = await self._generate_architecture(project, key_files_text, structure_hash)
 
         # 5. generate reading guide (needs module summaries + rankings placeholder)
         progress("Creating reading guide...")
         reading_guide = await self._generate_reading_guide(
-            project, module_docs, tree_hash
+            project, module_docs, structure_hash
         )
 
         progress("Done!")
@@ -98,6 +103,26 @@ class Analyzer:
             architecture=architecture,
             reading_guide=reading_guide,
         )
+
+    @staticmethod
+    def _structure_hash(project: ProjectContext) -> str:
+        """hash that captures project shape only (paths + sizes), not file bodies."""
+        parts = sorted(f"{f.path}:{f.size}" for f in project.files)
+        return content_hash("\n".join(parts))
+
+    @staticmethod
+    def _overview_hash(project: ProjectContext, structure_hash: str) -> str:
+        """structure hash + content hash of README / pyproject / package.json -- the
+        files that actually change a project's elevator pitch."""
+        relevant = ("readme", "pyproject", "package.json", "cargo.toml", "go.mod")
+        bodies = []
+        for f in project.files:
+            name = f.path.lower()
+            if any(token in name for token in relevant):
+                bodies.append((f.path, f.content or f.preview or ""))
+        bodies.sort()
+        material = structure_hash + "|" + "|".join(f"{p}:{c}" for p, c in bodies)
+        return content_hash(material)
 
     def _build_key_files_context(self, project: ProjectContext) -> str:
         """collect config files and entrypoints for the overview prompt."""
