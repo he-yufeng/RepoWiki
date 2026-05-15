@@ -29,6 +29,7 @@ env/
 node_modules/
 frontend/dist/
 src/repowiki/server/static/
+.build-test/
 
 .DS_Store
 Thumbs.db

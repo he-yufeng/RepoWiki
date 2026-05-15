@@ -268,6 +268,21 @@ def serve(path_or_url: str, port: int):
         )
         raise SystemExit(1)
 
+    # warn if the bundled web UI isn't present
+    from pathlib import Path as _Path
+
+    import repowiki.server as _server_pkg
+    static_dir = _Path(_server_pkg.__file__).parent / "static"
+    if not (static_dir / "index.html").exists():
+        console.print(
+            "[yellow]Web UI not bundled in this install.[/] "
+            "API endpoints will work, but / will 404.\n"
+            "[dim]To build the UI from source:[/] "
+            "[bold]cd frontend && npm install && npm run build[/]\n"
+            "[dim]Or reinstall with the published wheel: "
+            "[bold]pip install --upgrade repowiki[web][/][/]"
+        )
+
     console.print(f"[bold cyan]Starting RepoWiki server on port {port}...[/]")
     console.print(f"[bold]Open:[/] http://localhost:{port}")
 

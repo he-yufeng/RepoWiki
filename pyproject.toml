@@ -70,3 +70,30 @@ ignore = ["E501"]  # line length handled per-file; prompts and HTML templates na
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/repowiki"]
+
+# static/ is gitignored (it's a build artefact) but we want it inside the
+# wheel. force-include copies it in regardless of VCS state.
+[tool.hatch.build.targets.wheel.force-include]
+"src/repowiki/server/static" = "repowiki/server/static"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/repowiki",
+    "frontend/src",
+    "frontend/index.html",
+    "frontend/package.json",
+    "frontend/package-lock.json",
+    "frontend/tsconfig.json",
+    "frontend/vite.config.ts",
+    "tests",
+    "hatch_build.py",
+    "README.md",
+    "README_CN.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
+# Run the React build before packing wheel/sdist. See hatch_build.py.
+# Wrapped in a try/except inside the hook so missing npm warns rather than fails.
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
