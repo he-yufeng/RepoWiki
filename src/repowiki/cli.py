@@ -245,12 +245,108 @@ def serve(path_or_url: str, port: int):
 
 
 @cli.command()
-@click.argument("path_or_url")
-def chat(path_or_url: str):
-    """Ask questions about a codebase in the terminal."""
-    console.print("[bold cyan]RepoWiki Chat[/] (type 'exit' to quit)\n")
-    # phase 4 will implement this
-    console.print("[yellow]Chat mode coming soon. Use `repowiki scan` for now.[/]")
+@click.argument("path_or_url", default=".")
+@click.option("-m", "--model", default=None, help="LLM model name or alias")
+@click.option("-l", "--lang", default=None, help="Language for replies (en/zh/ja/ko)")
+@click.option("-k", "--top-k", default=5, type=int, help="Number of code chunks to retrieve")
+def chat(path_or_url: str, model: str | None, lang: str | None, top_k: int):
+    """Ask questions about a codebase in the terminal.
+
+    Indexes the project with TF-IDF on first question, then streams
+    the LLM's answer with a list of source files used for context.
+    """
+    cfg = Config.load()
+    if model:
+        cfg.model = resolve_model(model)
+    if lang:
+        cfg.language = lang
+
+    if not cfg.api_key:
+        console.print(
+            "[red]No API key configured.[/] Set one with "
+            "[bold]repowiki config set api_key YOUR_KEY[/] "
+            "or via DEEPSEEK_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY."
+        )
+        raise SystemExit(1)
+
+    with console.status("[bold cyan]Loading project..."):
+        if _is_url(path_or_url):
+            from repowiki.ingest.github import ingest_github
+            project = ingest_github(
+                path_or_url,
+                max_file_size=cfg.max_file_size,
+                max_files=cfg.max_files,
+            )
+        else:
+            from repowiki.ingest.local import ingest_local
+            project = ingest_local(
+                path_or_url,
+                max_file_size=cfg.max_file_size,
+                max_files=cfg.max_files,
+            )
+
+    with console.status("[bold cyan]Building TF-IDF index..."):
+        from repowiki.core.rag import SimpleRAG
+        rag = SimpleRAG()
+        rag.index(project)
+
+    console.print()
+    console.print(
+        f"[bold green]RepoWiki Chat[/] - {project.name} "
+        f"({len(project.files)} files, {len(rag.chunks)} chunks)"
+    )
+    console.print(f"[dim]Model: {cfg.model}  Lang: {cfg.language}  Top-K: {top_k}[/]")
+    console.print("[dim]Type your question, or 'exit' / Ctrl-D to quit.[/]\n")
+
+    import asyncio
+    from repowiki.llm.client import LLMClient, LLMError
+    from repowiki.llm.prompts import build_chat_prompt
+
+    llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
+
+    async def ask_once(question: str) -> None:
+        chunks = rag.retrieve(question, top_k=top_k)
+        if not chunks:
+            console.print("[yellow]No relevant code found in the index.[/]\n")
+            return
+
+        context_parts = []
+        console.print("[dim]Sources:[/]")
+        for chunk in chunks:
+            console.print(
+                f"  [cyan]{chunk.file_path}[/]:{chunk.line_start}-{chunk.line_end} "
+                f"[dim](score {chunk.score:.2f})[/]"
+            )
+            context_parts.append(
+                f"### {chunk.file_path} (lines {chunk.line_start}-{chunk.line_end})\n"
+                f"```\n{chunk.content}\n```"
+            )
+        console.print()
+
+        messages = build_chat_prompt(question, "\n\n".join(context_parts), cfg.language)
+        try:
+            async for piece in llm.stream(messages):
+                console.print(piece, end="", soft_wrap=True)
+        except LLMError as e:
+            console.print(f"\n[red]LLM error:[/] {e}")
+            return
+        console.print("\n")
+
+    while True:
+        try:
+            q = click.prompt("you", prompt_suffix="> ", default="", show_default=False).strip()
+        except (EOFError, click.exceptions.Abort):
+            console.print("\n[dim]bye[/]")
+            return
+        if not q:
+            continue
+        if q.lower() in ("exit", "quit", ":q"):
+            console.print("[dim]bye[/]")
+            return
+        try:
+            asyncio.run(ask_once(q))
+        except KeyboardInterrupt:
+            console.print("\n[dim](interrupted)[/]\n")
 
 
 @cli.group("config")
