@@ -126,7 +126,13 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
     cache = Cache()
     await cache.init()
 
-    analyzer = Analyzer(llm=llm, cache=cache, language=cfg.language, concurrency=cfg.concurrency)
+    analyzer = Analyzer(
+        llm=llm,
+        cache=cache,
+        language=cfg.language,
+        concurrency=cfg.concurrency,
+        max_context_tokens=cfg.max_context_tokens,
+    )
 
     from rich.progress import Progress, SpinnerColumn, TextColumn
     with Progress(

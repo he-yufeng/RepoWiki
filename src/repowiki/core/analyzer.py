@@ -28,6 +28,16 @@ from repowiki.llm.prompts import (
 logger = logging.getLogger(__name__)
 
 
+def _approx_tokens(text: str) -> int:
+    """rough token count. uses tiktoken cl100k if available, else chars/4."""
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
+    except Exception:
+        return max(1, len(text) // 4)
+
+
 class Analyzer:
     """runs the full wiki generation pipeline."""
 
@@ -37,10 +47,12 @@ class Analyzer:
         cache: Cache,
         language: str = "en",
         concurrency: int = 5,
+        max_context_tokens: int = 32_000,
     ):
         self.llm = llm
         self.cache = cache
         self.language = language
+        self.max_context_tokens = max_context_tokens
         self._sem = asyncio.Semaphore(concurrency)
         self._on_progress: Callable[[str], None] | None = None
         self.errors: list[str] = []
@@ -125,16 +137,57 @@ class Analyzer:
         return content_hash(material)
 
     def _build_key_files_context(self, project: ProjectContext) -> str:
-        """collect config files and entrypoints for the overview prompt."""
-        parts = []
-        for f in project.files:
-            if f.is_config or f.is_entrypoint:
-                content = f.content if f.content else f.preview
-                # truncate large files
-                if len(content) > 4096:
-                    content = content[:4096] + "\n... (truncated)"
-                parts.append(f"### {f.path}\n```{f.language}\n{content}\n```")
+        """collect config files and entrypoints for the overview prompt.
+
+        Files are added in priority order (config > entrypoint > pagerank
+        in the dependency graph) until ``max_context_tokens`` is exhausted.
+        Each file body is itself capped at 4 KB. Token counting uses tiktoken
+        if available, otherwise the cheap chars/4 estimate.
+        """
+        candidates = [f for f in project.files if f.is_config or f.is_entrypoint]
+        ordered = self._order_by_importance(candidates, project)
+
+        budget = self.max_context_tokens
+        parts: list[str] = []
+        used = 0
+        for f in ordered:
+            content = f.content if f.content else f.preview
+            if len(content) > 4096:
+                content = content[:4096] + "\n... (truncated)"
+            block = f"### {f.path}\n```{f.language}\n{content}\n```"
+            cost = _approx_tokens(block)
+            if budget and used + cost > budget:
+                # try to fit a short stub so the LLM at least knows the file exists
+                stub = f"### {f.path}\n(skipped to fit context budget)\n"
+                stub_cost = _approx_tokens(stub)
+                if used + stub_cost <= budget:
+                    parts.append(stub)
+                    used += stub_cost
+                continue
+            parts.append(block)
+            used += cost
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _order_by_importance(
+        candidates: list[FileInfo], project: ProjectContext
+    ) -> list[FileInfo]:
+        """sort: config files first, then entrypoints, then by PageRank."""
+        # lazy import: graph depends on networkx, only need it here
+        from repowiki.core.graph import DependencyGraph
+
+        try:
+            graph = DependencyGraph.build_from_project(project)
+            pagerank = dict(graph.rank_files())
+        except Exception:
+            pagerank = {}
+
+        def key(f: FileInfo) -> tuple:
+            tier = 0 if f.is_config else (1 if f.is_entrypoint else 2)
+            # negative pagerank so larger scores sort first
+            return (tier, -pagerank.get(f.path, 0.0), f.path)
+
+        return sorted(candidates, key=key)
 
     async def _generate_overview(
         self, project: ProjectContext, key_files: str, tree_hash: str
