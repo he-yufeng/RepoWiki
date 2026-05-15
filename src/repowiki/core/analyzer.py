@@ -16,7 +16,7 @@ from repowiki.core.models import (
     ReadingGuide,
     WikiData,
 )
-from repowiki.llm.client import LLMClient
+from repowiki.llm.client import LLMClient, LLMError
 from repowiki.llm.prompts import (
     build_architecture_prompt,
     build_module_prompt,
@@ -42,6 +42,15 @@ class Analyzer:
         self.cache = cache
         self.language = language
         self._sem = asyncio.Semaphore(concurrency)
+        self._on_progress: Callable[[str], None] | None = None
+        self.errors: list[str] = []
+
+    def _report_error(self, where: str, exc: Exception) -> None:
+        msg = f"{where} failed: {exc}"
+        self.errors.append(msg)
+        logger.warning(msg)
+        if self._on_progress:
+            self._on_progress(f"[error] {msg}")
 
     async def analyze(
         self,
@@ -49,6 +58,8 @@ class Analyzer:
         on_progress: Callable[[str], None] | None = None,
     ) -> WikiData:
         """run the full analysis pipeline and return WikiData."""
+        self._on_progress = on_progress
+        self.errors = []
 
         def progress(msg: str):
             if on_progress:
@@ -112,7 +123,12 @@ class Analyzer:
                 pass
 
         messages = build_overview_prompt(project.file_tree, key_files, self.language)
-        raw = await self.llm.complete(messages, max_tokens=4096)
+        try:
+            raw = await self.llm.complete(messages, max_tokens=4096)
+        except LLMError as e:
+            self._report_error("overview", e)
+            return ProjectOverview(name=project.name)
+
         data = extract_json(raw)
         if not data or not isinstance(data, dict):
             logger.warning("Failed to parse overview JSON, using defaults")
@@ -196,7 +212,15 @@ class Analyzer:
                     pass
 
             messages = build_module_prompt(name, files_context, project_summary, self.language)
-            raw = await self.llm.complete(messages, max_tokens=4096)
+            try:
+                raw = await self.llm.complete(messages, max_tokens=4096)
+            except LLMError as e:
+                self._report_error(f"module {name!r}", e)
+                return ModuleDoc(
+                    name=name,
+                    purpose=f"Module containing {len(files)} files (analysis skipped: {e})",
+                )
+
             data = extract_json(raw)
             if not data or not isinstance(data, dict):
                 logger.warning("Failed to parse module '%s' JSON", name)
@@ -224,7 +248,12 @@ class Analyzer:
                 pass
 
         messages = build_architecture_prompt(project.file_tree, key_files, self.language)
-        raw = await self.llm.complete(messages, max_tokens=4096)
+        try:
+            raw = await self.llm.complete(messages, max_tokens=4096)
+        except LLMError as e:
+            self._report_error("architecture", e)
+            return ArchitectureDiagram()
+
         data = extract_json(raw)
         if not data or not isinstance(data, dict):
             logger.warning("Failed to parse architecture JSON")
@@ -269,7 +298,12 @@ class Analyzer:
         module_summaries = "\n".join(module_parts)
 
         messages = build_reading_guide_prompt(rankings, module_summaries, self.language)
-        raw = await self.llm.complete(messages, max_tokens=4096)
+        try:
+            raw = await self.llm.complete(messages, max_tokens=4096)
+        except LLMError as e:
+            self._report_error("reading-guide", e)
+            return ReadingGuide()
+
         data = extract_json(raw)
         if not data or not isinstance(data, dict):
             logger.warning("Failed to parse reading guide JSON")

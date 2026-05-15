@@ -176,6 +176,16 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
             f"{f' (${llm.total_cost:.4f})' if llm.total_cost else ''}[/]"
         )
 
+    if analyzer.errors:
+        console.print()
+        console.print("[bold yellow]Some analysis steps failed:[/]")
+        for err in analyzer.errors:
+            console.print(f"  [red]•[/] {err}")
+        console.print(
+            "[dim]Wiki was generated with placeholders for failed sections. "
+            "Re-run to retry — successful sections are cached.[/]"
+        )
+
     await cache.close()
 
 

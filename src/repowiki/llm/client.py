@@ -12,6 +12,14 @@ litellm.suppress_debug_info = True
 logger = logging.getLogger(__name__)
 
 
+class LLMError(RuntimeError):
+    """raised when an LLM call fails. carries the underlying exception."""
+
+    def __init__(self, message: str, *, cause: Exception | None = None):
+        super().__init__(message)
+        self.cause = cause
+
+
 class LLMClient:
     """async LLM client backed by litellm."""
 
@@ -49,7 +57,7 @@ class LLMClient:
             resp = await litellm.acompletion(**kwargs)
         except Exception as e:
             logger.error("LLM call failed: %s", e)
-            return f"[LLM Error: {e}]"
+            raise LLMError(f"{type(e).__name__}: {e}", cause=e) from e
 
         usage = resp.usage
         if usage:
@@ -92,4 +100,4 @@ class LLMClient:
                     yield delta.content
         except Exception as e:
             logger.error("LLM stream failed: %s", e)
-            yield f"[LLM Error: {e}]"
+            raise LLMError(f"{type(e).__name__}: {e}", cause=e) from e
