@@ -70,7 +70,9 @@ Everything works from the terminal. No Docker, no database server, no web browse
 repowiki scan .                    # generate wiki
 repowiki scan . -f html --open     # open in browser
 repowiki scan . -l zh              # Chinese output
-repowiki chat .                    # ask questions (coming soon)
+repowiki scan . --since main       # incremental: only re-analyse changed modules
+repowiki scan . -c 2               # cap parallel LLM calls (rate-limit-friendly)
+repowiki chat .                    # terminal Q&A with TF-IDF retrieval
 repowiki config list               # show configuration
 ```
 

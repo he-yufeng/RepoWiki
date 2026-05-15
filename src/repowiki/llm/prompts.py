@@ -70,6 +70,9 @@ def build_module_prompt(
                 "Be direct and specific. No filler. "
                 "Explain what each file does, how files relate to each other, "
                 "and what the key functions/classes are. "
+                "When you mention a function or class, include the line "
+                "number it is defined on (counted from the file's first "
+                "non-blank line shown in the snippet, 1-based). "
                 f"{_lang_instruction(language)}"
             ),
         },
@@ -86,11 +89,14 @@ def build_module_prompt(
                 '  "description": "detailed explanation",\n'
                 '  "files": [\n'
                 '    {"path": "file.py", "purpose": "what it does", '
-                '"key_symbols": [{"name": "func_name", "kind": "function", "description": "..."}]}\n'
+                '"key_symbols": [{"name": "func_name", "kind": "function", '
+                '"line": 42, "description": "..."}]}\n'
                 '  ],\n'
                 '  "relationships": [{"source": "a.py", "target": "b.py", "description": "a imports b for..."}],\n'
                 '  "key_concepts": [{"name": "concept", "explanation": "..."}]\n'
                 "}\n\n"
+                "The 'line' field is REQUIRED for every key_symbol (use 0 "
+                "if you genuinely cannot tell). "
                 f"{_json_instruction()}"
             ),
         },

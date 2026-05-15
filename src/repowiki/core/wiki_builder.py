@@ -166,7 +166,8 @@ class WikiBuilder:
                 if f.key_symbols:
                     for s in f.key_symbols:
                         desc = f" - {s.description}" if s.description else ""
-                        lines.append(f"- `{s.name}` ({s.kind}){desc}")
+                        location = f" — `{f.path}:{s.line}`" if s.line else ""
+                        lines.append(f"- `{s.name}` ({s.kind}){location}{desc}")
                     lines.append("")
 
         if mod.key_concepts:
