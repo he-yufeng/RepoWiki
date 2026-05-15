@@ -220,24 +220,79 @@ class Analyzer:
         await self.cache.put(cache_key, overview.model_dump())
         return overview
 
-    def _group_into_modules(self, files: list[FileInfo]) -> dict[str, list[FileInfo]]:
-        """group files by their top-level directory."""
+    def _group_into_modules(
+        self,
+        files: list[FileInfo],
+        split_threshold: int = 10,
+    ) -> dict[str, list[FileInfo]]:
+        """group files by directory.
+
+        Initial pass uses the top-level dir (skipping common wrappers like
+        ``src``/``lib``). Any module that ends up with more than
+        ``split_threshold`` files is recursively split by its next directory
+        level so the LLM doesn't get a fire-hose of unrelated files in a
+        single prompt.
+        """
         from pathlib import Path
 
+        # first pass: top-level grouping (existing behaviour)
         modules: dict[str, list[FileInfo]] = {}
         for f in files:
             parts = Path(f.path).parts
             if len(parts) == 1:
-                # root-level files go into a "root" module
                 modules.setdefault("root", []).append(f)
             else:
-                # use the first directory as module name
                 mod = parts[0]
-                # if it's a common wrapper like "src", use the second level
                 if mod in ("src", "lib", "pkg", "internal", "app") and len(parts) > 2:
                     mod = parts[1]
                 modules.setdefault(mod, []).append(f)
-        return modules
+
+        # second pass: split oversize modules by their next directory level
+        result: dict[str, list[FileInfo]] = {}
+        for name, mod_files in modules.items():
+            if len(mod_files) <= split_threshold:
+                result[name] = mod_files
+                continue
+            sub = self._split_module(name, mod_files)
+            # if the split degenerates back to one bucket, keep the original name
+            if len(sub) <= 1:
+                result[name] = mod_files
+            else:
+                for sub_name, sub_files in sub.items():
+                    result[sub_name] = sub_files
+        return result
+
+    @staticmethod
+    def _split_module(
+        parent: str, files: list[FileInfo]
+    ) -> dict[str, list[FileInfo]]:
+        """split a module's files by their next path component after the
+        directory the module already represents.
+
+        Files that live directly under ``parent`` (no further directory)
+        go into a ``parent/_root`` bucket.
+        """
+        from pathlib import Path
+
+        buckets: dict[str, list[FileInfo]] = {}
+        for f in files:
+            parts = Path(f.path).parts
+            try:
+                idx = parts.index(parent)
+            except ValueError:
+                # synthetic parent ("root"): treat as if the file's first dir
+                # is the next component
+                idx = -1
+
+            # the segment immediately after the parent dir; the final part is
+            # always the filename, so we need at least one extra dir between.
+            next_idx = idx + 1
+            if next_idx >= len(parts) - 1:
+                key = f"{parent}/_root"
+            else:
+                key = f"{parent}/{parts[next_idx]}"
+            buckets.setdefault(key, []).append(f)
+        return buckets
 
     async def _analyze_modules(
         self,
