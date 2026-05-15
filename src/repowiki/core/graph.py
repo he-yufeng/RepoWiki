@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 import networkx as nx
 
-from repowiki.core.models import ProjectContext
+from repowiki.core.models import FileInfo, ProjectContext
 
 # import pattern regexes by language
 _IMPORT_PATTERNS = {
@@ -52,6 +53,7 @@ class DependencyGraph:
         dg = cls()
         path_set = {f.path for f in project.files}
         dg._file_paths = path_set
+        ts_aliases = _load_ts_aliases(project.files)
 
         # add all files as nodes
         for f in project.files:
@@ -67,7 +69,10 @@ class DependencyGraph:
             for pat in patterns:
                 for match in pat.finditer(content):
                     import_path = match.group(1)
-                    resolved = _resolve_import(import_path, f.path, f.language, path_set)
+                    resolved = _resolve_import(
+                        import_path, f.path, f.language, path_set,
+                        ts_aliases=ts_aliases,
+                    )
                     if resolved and resolved != f.path:
                         dg.graph.add_edge(f.path, resolved)
 
@@ -142,11 +147,94 @@ def _mermaid_id(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
 
+def _strip_jsonc(text: str) -> str:
+    """remove // line comments and /* block comments / trailing commas
+    so JSON-with-comments (tsconfig.json convention) parses."""
+    # block comments
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    # line comments (must not be inside a string -- approximated)
+    text = re.sub(r"//[^\n]*", "", text)
+    # trailing commas before } or ]
+    text = re.sub(r",\s*([\]}])", r"\1", text)
+    return text
+
+
+def _load_ts_aliases(files: list[FileInfo]) -> dict[str, list[str]]:
+    """parse tsconfig.json (and jsconfig.json) compilerOptions.paths into a
+    dict mapping alias-prefix -> list of candidate path templates relative
+    to the project root.
+
+    Example tsconfig:
+        { "compilerOptions": {
+            "baseUrl": ".",
+            "paths": { "@/*": ["src/*"], "@lib/*": ["packages/lib/*"] }
+        } }
+
+    Returned dict keeps the trailing `*` so callers can do prefix matches.
+    """
+    aliases: dict[str, list[str]] = {}
+    for f in files:
+        name = Path(f.path).name.lower()
+        if name not in ("tsconfig.json", "jsconfig.json") and not name.startswith("tsconfig."):
+            continue
+        body = f.content or f.preview
+        if not body:
+            continue
+        try:
+            data = json.loads(_strip_jsonc(body))
+        except (json.JSONDecodeError, ValueError):
+            continue
+        compiler_opts = (data or {}).get("compilerOptions") or {}
+        base_url = compiler_opts.get("baseUrl") or "."
+        paths = compiler_opts.get("paths") or {}
+        if not isinstance(paths, dict):
+            continue
+
+        config_dir = Path(f.path).parent
+        # anchor = project-root-relative directory the tsconfig's targets resolve from
+        anchor = (config_dir / base_url).as_posix().lstrip("./") or ""
+
+        for alias, targets in paths.items():
+            if not isinstance(targets, list):
+                continue
+            resolved_targets: list[str] = []
+            for t in targets:
+                if not isinstance(t, str):
+                    continue
+                # keep trailing '*' so _apply_ts_alias knows it's a wildcard
+                normalised = (Path(anchor) / t).as_posix()
+                # Path() drops a trailing /* or /; restore if the source had it
+                if t.endswith("*") and not normalised.endswith("*"):
+                    normalised = normalised + "*" if normalised.endswith("/") else normalised + "/*"
+                resolved_targets.append(normalised)
+            if resolved_targets:
+                aliases[alias] = resolved_targets
+    return aliases
+
+
+def _apply_ts_alias(
+    import_path: str, aliases: dict[str, list[str]]
+) -> list[str]:
+    """expand a TS alias import like "@/foo/bar" into candidate file paths."""
+    candidates: list[str] = []
+    for alias, targets in aliases.items():
+        if alias.endswith("/*") and import_path.startswith(alias[:-1]):
+            tail = import_path[len(alias) - 1:]
+            for t in targets:
+                base = t[:-1] if t.endswith("*") else t
+                candidates.append(f"{base}{tail}")
+        elif alias == import_path:
+            candidates.extend(targets)
+    return candidates
+
+
 def _resolve_import(
     import_path: str,
     source_file: str,
     language: str,
     known_paths: set[str],
+    *,
+    ts_aliases: dict[str, list[str]] | None = None,
 ) -> str | None:
     """try to resolve an import string to an actual file path in the project."""
     if language in ("python", "pyi"):
@@ -163,13 +251,20 @@ def _resolve_import(
             # relative import
             base_dir = str(Path(source_file).parent)
             rel = str(Path(base_dir) / import_path)
+            base_candidates = [rel]
         else:
-            rel = import_path
-        candidates = [
-            rel,
-            f"{rel}.ts", f"{rel}.tsx", f"{rel}.js", f"{rel}.jsx",
-            f"{rel}/index.ts", f"{rel}/index.tsx", f"{rel}/index.js",
-        ]
+            base_candidates = [import_path]
+            # try TS path aliases (`@/foo`, `~lib/bar`, etc.)
+            if ts_aliases:
+                base_candidates.extend(_apply_ts_alias(import_path, ts_aliases))
+
+        candidates = []
+        for rel in base_candidates:
+            candidates.extend([
+                rel,
+                f"{rel}.ts", f"{rel}.tsx", f"{rel}.js", f"{rel}.jsx",
+                f"{rel}/index.ts", f"{rel}/index.tsx", f"{rel}/index.js",
+            ])
     elif language == "go":
         # go imports are package paths, hard to resolve without go.mod
         parts = import_path.split("/")
@@ -187,9 +282,15 @@ def _resolve_import(
         return None
 
     for c in candidates:
-        # normalize path
-        c = str(Path(c))
+        # normalize path; always use forward slashes so Windows and POSIX
+        # path keys both match the project's stored relative paths
+        c = Path(c).as_posix()
         if c in known_paths:
             return c
+        # also try the OS-native form because file_paths may have been
+        # produced with backslashes on Windows
+        native = str(Path(c))
+        if native in known_paths:
+            return native
 
     return None
