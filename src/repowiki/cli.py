@@ -44,10 +44,15 @@ def cli():
     "--max-context-tokens", default=None, type=int,
     help="Token budget for project-wide prompts. 0 = unlimited (default 32000)",
 )
+@click.option(
+    "--since", default=None,
+    help="Incremental mode: only re-analyse modules touching files changed "
+         "since this git ref (e.g. HEAD~10, main). Local-path scans only.",
+)
 @click.option("--open", "open_browser", is_flag=True, help="Open HTML output in browser")
 def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
          model: str | None, concurrency: int | None,
-         max_context_tokens: int | None, open_browser: bool):
+         max_context_tokens: int | None, since: str | None, open_browser: bool):
     """Scan a local directory or GitHub URL and generate wiki documentation."""
     cfg = Config.load()
     if lang:
@@ -76,6 +81,29 @@ def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
                 max_file_size=cfg.max_file_size,
                 max_files=cfg.max_files,
             )
+
+    # incremental: resolve --since into a set of changed paths
+    changed_paths: set[str] | None = None
+    if since:
+        if _is_url(path_or_url):
+            console.print(
+                "[yellow]--since is only supported for local paths "
+                "(remote scans always do a full analysis).[/]"
+            )
+        else:
+            from repowiki.ingest.git_diff import changed_paths_since
+            changed_paths = changed_paths_since(path_or_url, since)
+            if changed_paths:
+                console.print(
+                    f"[bold green]Incremental:[/] {len(changed_paths)} "
+                    f"file(s) changed since {since}"
+                )
+            else:
+                console.print(
+                    f"[yellow]--since {since}: no changes detected (or git unavailable). "
+                    "Falling back to full analysis.[/]"
+                )
+                changed_paths = None
 
     # display scan results
     console.print()
@@ -113,10 +141,11 @@ def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
 
     # phase 2 will add LLM analysis here
     import asyncio
-    asyncio.run(_run_analysis(project, cfg, fmt, open_browser))
+    asyncio.run(_run_analysis(project, cfg, fmt, open_browser, changed_paths))
 
 
-async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
+async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool,
+                        changed_paths: set[str] | None = None):
     """run the full LLM analysis pipeline."""
     from repowiki.core.analyzer import Analyzer
     from repowiki.core.cache import Cache
@@ -132,6 +161,7 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
         language=cfg.language,
         concurrency=cfg.concurrency,
         max_context_tokens=cfg.max_context_tokens,
+        changed_paths=changed_paths,
     )
 
     from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -180,6 +210,13 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
             f"[dim]Tokens used: {llm.total_input_tokens:,} in / "
             f"{llm.total_output_tokens:,} out"
             f"{f' (${llm.total_cost:.4f})' if llm.total_cost else ''}[/]"
+        )
+
+    if analyzer.skipped_modules:
+        console.print(
+            f"[dim]Incremental: skipped {len(analyzer.skipped_modules)} unchanged "
+            f"module(s) -> {', '.join(analyzer.skipped_modules[:5])}"
+            f"{'...' if len(analyzer.skipped_modules) > 5 else ''}[/]"
         )
 
     if analyzer.errors:

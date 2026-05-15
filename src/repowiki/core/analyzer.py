@@ -48,14 +48,20 @@ class Analyzer:
         language: str = "en",
         concurrency: int = 5,
         max_context_tokens: int = 32_000,
+        changed_paths: set[str] | None = None,
     ):
         self.llm = llm
         self.cache = cache
         self.language = language
         self.max_context_tokens = max_context_tokens
+        # if non-None, modules whose files all sit outside this set will skip
+        # the LLM call entirely and rely on cache (or return a placeholder).
+        # Set to None to disable incremental mode and analyse everything.
+        self.changed_paths = changed_paths
         self._sem = asyncio.Semaphore(concurrency)
         self._on_progress: Callable[[str], None] | None = None
         self.errors: list[str] = []
+        self.skipped_modules: list[str] = []
 
     def _report_error(self, where: str, exc: Exception) -> None:
         msg = f"{where} failed: {exc}"
@@ -343,6 +349,19 @@ class Analyzer:
                     return ModuleDoc(**cached)
                 except Exception:
                     pass
+
+            # incremental mode: if none of the module's files appear in the
+            # changed_paths set, skip the LLM call and emit a placeholder.
+            if self.changed_paths is not None:
+                module_paths = {f.path for f in files}
+                if module_paths.isdisjoint(self.changed_paths):
+                    self.skipped_modules.append(name)
+                    if self._on_progress:
+                        self._on_progress(f"[skip] module {name!r} unchanged")
+                    return ModuleDoc(
+                        name=name,
+                        purpose=f"Module containing {len(files)} files (skipped, unchanged since prior run)",
+                    )
 
             messages = build_module_prompt(name, files_context, project_summary, self.language)
             try:
