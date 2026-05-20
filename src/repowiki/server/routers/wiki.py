@@ -48,8 +48,20 @@ async def get_page(project_id: str, page_id: str):
 
 
 @router.get("/project/{project_id}/file/{file_path:path}")
-async def get_file(project_id: str, file_path: str):
-    """get file content with language detection."""
+async def get_file(
+    project_id: str,
+    file_path: str,
+    start: int = 0,
+    end: int = 0,
+):
+    """get file content with language detection.
+
+    When ``start``/``end`` are supplied (1-based, inclusive line numbers)
+    the response also includes a pre-sliced ``snippet`` plus
+    ``highlight_start``/``highlight_end`` so the SourceView component
+    can render with the target lines highlighted without re-parsing the
+    full body on the client.
+    """
     projects = get_projects()
     proj = projects.get(project_id)
     if not proj or not proj.get("project"):
@@ -58,12 +70,25 @@ async def get_file(project_id: str, file_path: str):
     project = proj["project"]
     for f in project.files:
         if f.path == file_path:
-            return {
+            full = f.content or f.preview
+            payload: dict = {
                 "path": f.path,
                 "language": f.language,
-                "content": f.content or f.preview,
+                "content": full,
                 "lines": f.lines,
             }
+            if start and end and start > 0 and end >= start:
+                # Slice the body around the target range with some context
+                # above/below so the user sees what surrounds the citation.
+                lines = full.splitlines()
+                pad = 10
+                lo = max(0, start - 1 - pad)
+                hi = min(len(lines), end + pad)
+                payload["snippet"] = "\n".join(lines[lo:hi])
+                payload["snippet_start"] = lo + 1
+                payload["highlight_start"] = start
+                payload["highlight_end"] = end
+            return payload
 
     return {"error": f"File '{file_path}' not found"}
 

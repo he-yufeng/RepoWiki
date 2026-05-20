@@ -11,6 +11,9 @@ class ScanRequest(BaseModel):
     language: str = "en"
     model: str | None = None
     api_key: str | None = None
+    # Optional git ref for incremental scan. Only honored for local paths
+    # (GitHub URL scans are always full). Mirrors the CLI's --since flag.
+    since: str | None = None
 
 
 class ProjectInfo(BaseModel):

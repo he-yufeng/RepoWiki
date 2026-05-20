@@ -46,6 +46,11 @@ def create_app():
         lifespan=lifespan,
     )
 
+    # NOTE: this allow-list targets local development with Vite (5173) and
+    # CRA (3000). Production deployments behind a real domain should
+    # override this -- either patch this list, or front the app with a
+    # reverse proxy and same-origin requests. Don't widen to "*" because
+    # the chat endpoint accepts user-supplied API keys via x-api-key.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
