@@ -164,6 +164,15 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool,
         changed_paths=changed_paths,
     )
 
+    # Build the dependency graph upfront so PageRank is available both to
+    # the analyzer (reading guide ordering) and to the wiki builder
+    # (dependency page).
+    from repowiki.core.graph import DependencyGraph
+    from repowiki.core.wiki_builder import WikiBuilder
+
+    graph = DependencyGraph.build_from_project(project)
+    rankings = graph.rank_files()
+
     from rich.progress import Progress, SpinnerColumn, TextColumn
     with Progress(
         SpinnerColumn(),
@@ -175,13 +184,10 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool,
         def on_progress(step: str):
             progress.update(task, description=step)
 
-        wiki_data = await analyzer.analyze(project, on_progress=on_progress)
+        wiki_data = await analyzer.analyze(
+            project, on_progress=on_progress, rankings=rankings,
+        )
 
-    # export
-    from repowiki.core.graph import DependencyGraph
-    from repowiki.core.wiki_builder import WikiBuilder
-
-    graph = DependencyGraph.build_from_project(project)
     builder = WikiBuilder()
     wiki = builder.build(project, wiki_data, graph)
 
@@ -228,6 +234,14 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool,
             "[dim]Wiki was generated with placeholders for failed sections. "
             "Re-run to retry — successful sections are cached.[/]"
         )
+
+    if builder.warnings:
+        console.print()
+        console.print("[bold yellow]Content sanity warnings:[/]")
+        for w in builder.warnings[:10]:
+            console.print(f"  [yellow]•[/] {w}")
+        if len(builder.warnings) > 10:
+            console.print(f"  [dim](+{len(builder.warnings) - 10} more)[/]")
 
     await cache.close()
 
@@ -300,7 +314,10 @@ def serve(path_or_url: str, port: int):
 @click.argument("path_or_url", default=".")
 @click.option("-m", "--model", default=None, help="LLM model name or alias")
 @click.option("-l", "--lang", default=None, help="Language for replies (en/zh/ja/ko)")
-@click.option("-k", "--top-k", default=5, type=int, help="Number of code chunks to retrieve")
+@click.option(
+    "-k", "--top-k", default=5, type=click.IntRange(1, 50),
+    help="Number of code chunks to retrieve (1-50)",
+)
 def chat(path_or_url: str, model: str | None, lang: str | None, top_k: int):
     """Ask questions about a codebase in the terminal.
 
@@ -357,33 +374,56 @@ def chat(path_or_url: str, model: str | None, lang: str | None, top_k: int):
 
     llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
 
+    # multi-turn history kept in process memory; cleared with ":clear"
+    history: list[dict] = []
+
     async def ask_once(question: str) -> None:
+        from rich.markdown import Markdown
+        from rich.table import Table as RichTable
+
         chunks = rag.retrieve(question, top_k=top_k)
         if not chunks:
             console.print("[yellow]No relevant code found in the index.[/]\n")
             return
 
+        sources = RichTable(show_header=False, box=None, pad_edge=False)
+        sources.add_column(style="cyan")
+        sources.add_column(style="dim")
         context_parts = []
-        console.print("[dim]Sources:[/]")
         for chunk in chunks:
-            console.print(
-                f"  [cyan]{chunk.file_path}[/]:{chunk.line_start}-{chunk.line_end} "
-                f"[dim](score {chunk.score:.2f})[/]"
+            sources.add_row(
+                f"{chunk.file_path}:{chunk.line_start}-{chunk.line_end}",
+                f"(score {chunk.score:.2f})",
             )
             context_parts.append(
                 f"### {chunk.file_path} (lines {chunk.line_start}-{chunk.line_end})\n"
                 f"```\n{chunk.content}\n```"
             )
+        console.print("[dim]Sources:[/]")
+        console.print(sources)
         console.print()
 
-        messages = build_chat_prompt(question, "\n\n".join(context_parts), cfg.language)
+        messages = build_chat_prompt(
+            question, "\n\n".join(context_parts), cfg.language, history=history,
+        )
+        # buffer the stream so we can render the final answer as Markdown
+        # in one pass (Rich's Markdown doesn't support incremental render).
+        # Print a heartbeat dot every chunk so the user sees progress.
+        buffer = []
         try:
             async for piece in llm.stream(messages):
-                console.print(piece, end="", soft_wrap=True)
+                buffer.append(piece)
+                console.print(".", end="", soft_wrap=True)
         except LLMError as e:
-            console.print(f"\n[red]LLM error:[/] {e}")
+            console.print(f"\n[red]LLM error:[/] {e}\n")
             return
-        console.print("\n")
+        console.print()  # newline after the dots
+        answer = "".join(buffer)
+        if answer.strip():
+            console.print(Markdown(answer))
+            history.append({"role": "user", "content": question})
+            history.append({"role": "assistant", "content": answer})
+        console.print()
 
     while True:
         try:
@@ -396,6 +436,10 @@ def chat(path_or_url: str, model: str | None, lang: str | None, top_k: int):
         if q.lower() in ("exit", "quit", ":q"):
             console.print("[dim]bye[/]")
             return
+        if q.lower() in (":clear", "/clear"):
+            history.clear()
+            console.print("[dim](history cleared)[/]\n")
+            continue
         try:
             asyncio.run(ask_once(q))
         except KeyboardInterrupt:
