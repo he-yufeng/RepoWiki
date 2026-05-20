@@ -40,12 +40,20 @@ class Wiki:
 class WikiBuilder:
     """constructs a Wiki from analysis results."""
 
+    def __init__(self) -> None:
+        # populated each build() call; visible to callers that inspect
+        # the builder after running, e.g. cli.py for end-of-run warnings.
+        self.warnings: list[str] = []
+
     def build(
         self,
         project: ProjectContext,
         wiki_data: WikiData,
         graph: DependencyGraph,
     ) -> Wiki:
+        self.warnings = []
+        valid_paths: set[str] = {f.path for f in project.files}
+
         pages: list[WikiPage] = []
         sidebar: list[SidebarItem] = []
 
@@ -58,7 +66,7 @@ class WikiBuilder:
         # 2. architecture page
         arch = wiki_data.architecture
         if arch.architecture_type:
-            arch_md = self._build_architecture_page(arch)
+            arch_md = self._build_architecture_page(arch, valid_paths)
             pages.append(WikiPage(id="architecture", title="Architecture", content=arch_md, order=1))
             sidebar.append(SidebarItem(title="Architecture", page_id="architecture"))
 
@@ -66,7 +74,7 @@ class WikiBuilder:
         module_sidebar = SidebarItem(title="Modules", page_id="", children=[])
         for i, mod in enumerate(wiki_data.modules):
             mod_id = f"modules/{mod.name}"
-            mod_md = self._build_module_page(mod)
+            mod_md = self._build_module_page(mod, valid_paths)
             pages.append(WikiPage(
                 id=mod_id, title=mod.name, content=mod_md,
                 parent_id="modules", order=i,
@@ -78,7 +86,7 @@ class WikiBuilder:
         # 4. reading guide
         guide = wiki_data.reading_guide
         if guide.steps:
-            guide_md = self._build_reading_guide_page(guide)
+            guide_md = self._build_reading_guide_page(guide, valid_paths)
             pages.append(WikiPage(id="reading-guide", title="Reading Guide", content=guide_md, order=10))
             sidebar.append(SidebarItem(title="Reading Guide", page_id="reading-guide"))
 
@@ -90,6 +98,28 @@ class WikiBuilder:
             sidebar.append(SidebarItem(title="Dependencies", page_id="dependencies"))
 
         return Wiki(pages=pages, sidebar=sidebar, project_name=project.name)
+
+    def _filter_paths(
+        self, paths: list[str], valid_paths: set[str], where: str
+    ) -> list[str]:
+        """drop paths the LLM made up; record a warning if any were dropped.
+
+        When ``valid_paths`` is empty we treat validation as disabled (used by
+        tests that build pages from a synthetic WikiData with no real project
+        files attached); production scans always have files.
+        """
+        if not valid_paths:
+            return list(paths)
+        kept, dropped = [], []
+        for p in paths:
+            (kept if p in valid_paths else dropped).append(p)
+        if dropped:
+            self.warnings.append(
+                f"{where}: dropped {len(dropped)} non-existent file path(s) "
+                f"from LLM output ({', '.join(dropped[:3])}"
+                f"{'...' if len(dropped) > 3 else ''})"
+            )
+        return kept
 
     def _build_overview_page(self, overview, project) -> str:
         lines = [f"# {overview.name or project.name}\n"]
@@ -120,7 +150,9 @@ class WikiBuilder:
 
         return "\n".join(lines)
 
-    def _build_architecture_page(self, arch) -> str:
+    def _build_architecture_page(self, arch, valid_paths: set[str]) -> str:
+        from repowiki.core.mermaid import describe_components, sanitize_mermaid
+
         lines = ["# Architecture\n"]
         if arch.architecture_type:
             lines.append(f"**Type:** {arch.architecture_type}\n")
@@ -128,8 +160,18 @@ class WikiBuilder:
             lines.append(f"{arch.description}\n")
 
         if arch.mermaid_component:
+            fixed = sanitize_mermaid(arch.mermaid_component, kind="component")
             lines.append("## Component Diagram\n")
-            lines.append(f"```mermaid\n{arch.mermaid_component}\n```\n")
+            if fixed:
+                lines.append(f"```mermaid\n{fixed}\n```\n")
+            else:
+                self.warnings.append("architecture: component diagram had unrecoverable Mermaid syntax")
+                fallback = describe_components(arch)
+                if fallback:
+                    lines.append("_diagram unavailable; showing components as text:_\n")
+                    lines.append(fallback + "\n")
+                else:
+                    lines.append("_diagram unavailable: LLM-generated Mermaid was invalid_\n")
 
         if arch.components:
             lines.append("## Components\n")
@@ -138,11 +180,18 @@ class WikiBuilder:
                 if c.purpose:
                     lines.append(f"{c.purpose}\n")
                 if c.files:
-                    lines.append("Files: " + ", ".join(f"`{f}`" for f in c.files) + "\n")
+                    kept = self._filter_paths(c.files, valid_paths, f"architecture.{c.name}")
+                    if kept:
+                        lines.append("Files: " + ", ".join(f"`{f}`" for f in kept) + "\n")
 
         if arch.mermaid_sequence:
+            fixed = sanitize_mermaid(arch.mermaid_sequence, kind="sequence")
             lines.append("## Sequence Diagram\n")
-            lines.append(f"```mermaid\n{arch.mermaid_sequence}\n```\n")
+            if fixed:
+                lines.append(f"```mermaid\n{fixed}\n```\n")
+            else:
+                self.warnings.append("architecture: sequence diagram had unrecoverable Mermaid syntax")
+                lines.append("_diagram unavailable: LLM-generated Mermaid was invalid_\n")
 
         if arch.data_flow:
             lines.append("## Data Flow\n")
@@ -150,7 +199,7 @@ class WikiBuilder:
 
         return "\n".join(lines)
 
-    def _build_module_page(self, mod) -> str:
+    def _build_module_page(self, mod, valid_paths: set[str]) -> str:
         lines = [f"# {mod.name}\n"]
         if mod.purpose:
             lines.append(f"> {mod.purpose}\n")
@@ -158,17 +207,28 @@ class WikiBuilder:
             lines.append(f"{mod.description}\n")
 
         if mod.files:
-            lines.append("## Files\n")
-            for f in mod.files:
-                lines.append(f"### `{f.path}`\n")
-                if f.purpose:
-                    lines.append(f"{f.purpose}\n")
-                if f.key_symbols:
-                    for s in f.key_symbols:
-                        desc = f" - {s.description}" if s.description else ""
-                        location = f" — `{f.path}:{s.line}`" if s.line else ""
-                        lines.append(f"- `{s.name}` ({s.kind}){location}{desc}")
-                    lines.append("")
+            if valid_paths:
+                valid_files = [f for f in mod.files if f.path in valid_paths]
+                dropped = len(mod.files) - len(valid_files)
+                if dropped:
+                    self.warnings.append(
+                        f"module {mod.name!r}: dropped {dropped} file entries with non-existent paths"
+                    )
+            else:
+                # degenerate input (e.g. unit tests); skip validation
+                valid_files = list(mod.files)
+            if valid_files:
+                lines.append("## Files\n")
+                for f in valid_files:
+                    lines.append(f"### `{f.path}`\n")
+                    if f.purpose:
+                        lines.append(f"{f.purpose}\n")
+                    if f.key_symbols:
+                        for s in f.key_symbols:
+                            desc = f" - {s.description}" if s.description else ""
+                            location = f" — `{f.path}:{s.line}`" if s.line else ""
+                            lines.append(f"- `{s.name}` ({s.kind}){location}{desc}")
+                        lines.append("")
 
         if mod.key_concepts:
             lines.append("## Key Concepts\n")
@@ -177,14 +237,28 @@ class WikiBuilder:
             lines.append("")
 
         if mod.relationships:
-            lines.append("## Internal Relationships\n")
-            for r in mod.relationships:
-                lines.append(f"- `{r.source}` → `{r.target}`: {r.description}")
-            lines.append("")
+            if valid_paths:
+                kept_rels = [
+                    r for r in mod.relationships
+                    if r.source in valid_paths and r.target in valid_paths
+                ]
+                if len(kept_rels) < len(mod.relationships):
+                    self.warnings.append(
+                        f"module {mod.name!r}: dropped "
+                        f"{len(mod.relationships) - len(kept_rels)} relationship(s) "
+                        "referring to non-existent files"
+                    )
+            else:
+                kept_rels = list(mod.relationships)
+            if kept_rels:
+                lines.append("## Internal Relationships\n")
+                for r in kept_rels:
+                    lines.append(f"- `{r.source}` → `{r.target}`: {r.description}")
+                lines.append("")
 
         return "\n".join(lines)
 
-    def _build_reading_guide_page(self, guide) -> str:
+    def _build_reading_guide_page(self, guide, valid_paths: set[str]) -> str:
         lines = ["# Reading Guide\n"]
         if guide.introduction:
             lines.append(f"{guide.introduction}\n")
@@ -193,7 +267,9 @@ class WikiBuilder:
             time_est = f" (~{step.time_estimate})" if step.time_estimate else ""
             lines.append(f"## Step {step.order}: {step.title}{time_est}\n")
             if step.files:
-                lines.append("**Files:** " + ", ".join(f"`{f}`" for f in step.files) + "\n")
+                kept = self._filter_paths(step.files, valid_paths, f"reading-guide.step{step.order}")
+                if kept:
+                    lines.append("**Files:** " + ", ".join(f"`{f}`" for f in kept) + "\n")
             if step.explanation:
                 lines.append(f"{step.explanation}\n")
 
