@@ -4,8 +4,17 @@ import { scanProject, streamScanProgress, getWiki } from "../lib/api";
 import { useWikiStore } from "../stores/wiki";
 import SettingsModal from "../components/SettingsModal";
 
+function looksLikeUrl(s: string): boolean {
+  // Anything that smells like a GitHub URL or starts with a scheme goes to
+  // the `url` field; everything else is treated as a local path. We also
+  // accept owner/repo shorthand the backend normalises.
+  return /^(https?:\/\/|git@|github\.com\/|[\w-]+\/[\w.-]+$)/.test(s);
+}
+
 export default function Home() {
   const [url, setUrl] = useState("");
+  const [since, setSince] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const { loading, setLoading, scanProgress, addProgress, setProjectId, setProject, setWiki, setError, reset, settings } = useWikiStore();
   const navigate = useNavigate();
@@ -20,11 +29,20 @@ export default function Home() {
       localStorage.setItem("repowiki_api_key", settings.apiKey);
     }
 
+    const target = url.trim();
+    const isUrl = looksLikeUrl(target);
+    // --since only applies to local paths; if the user typed a URL we just
+    // ignore it on the backend, but warn here so the input isn't silently
+    // dropped.
+    const sinceRef = since.trim() || undefined;
+
     try {
       const info = await scanProject({
-        url: url.trim(),
+        url: isUrl ? target : undefined,
+        path: isUrl ? undefined : target,
         language: settings.language,
         model: settings.model || undefined,
+        since: isUrl ? undefined : sinceRef,
       });
       setProjectId(info.id);
       setProject(info);
@@ -96,6 +114,34 @@ export default function Home() {
             >
               {loading ? "Scanning..." : "Generate Wiki"}
             </button>
+          </div>
+
+          {/* advanced options: incremental scan via --since */}
+          <div className="mt-3 text-xs text-slate-500">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="hover:text-slate-700"
+            >
+              {showAdvanced ? "▾" : "▸"} Advanced
+            </button>
+            {showAdvanced && (
+              <div className="mt-2 flex items-center gap-2">
+                <label htmlFor="since-ref" className="whitespace-nowrap">
+                  Incremental since (git ref):
+                </label>
+                <input
+                  id="since-ref"
+                  type="text"
+                  value={since}
+                  onChange={(e) => setSince(e.target.value)}
+                  placeholder="e.g. HEAD~5, main, v1.0.0"
+                  className="flex-1 px-2 py-1 rounded border border-slate-300 focus:border-blue-500 outline-none text-slate-700"
+                  disabled={loading}
+                />
+                <span className="text-slate-400 text-[11px]">local paths only</span>
+              </div>
+            )}
           </div>
 
           {/* progress display */}
