@@ -81,9 +81,18 @@ async def chat(project_id: str, req: ChatRequest, x_api_key: str | None = Header
         proj["rag"] = rag
 
     # Retrieval is in-memory and cheap; keep it on the event loop.
+    # Augment the query with the last user turn so short follow-ups like
+    # "what does it return?" still retrieve relevant code (BM25 ignores
+    # tokens not in the index, so adding history can only help).
+    retrieval_query = req.question
+    if req.history:
+        for turn in reversed(req.history):
+            if isinstance(turn, dict) and turn.get("role") == "user":
+                retrieval_query = f"{turn.get('content', '')} {req.question}"
+                break
     t_retrieve_start = time.monotonic()
     chunks = rag.retrieve(
-        req.question,
+        retrieval_query,
         top_k=cfg.rag_top_k,
         min_score=cfg.rag_min_score,
     )

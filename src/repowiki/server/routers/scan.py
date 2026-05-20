@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
-import uuid
+import os
 
 from fastapi import APIRouter, BackgroundTasks, Header
 from fastapi.responses import StreamingResponse
@@ -16,10 +17,26 @@ from repowiki.server.models import ProjectInfo, ScanRequest
 router = APIRouter()
 
 
+def _project_id_for(req: ScanRequest) -> str:
+    """derive a stable 8-char project id from the source path or URL.
+
+    Stability across server restarts is what lets the on-disk RAG snapshot
+    (rag_store) actually pay off -- re-scanning the same target rebuilds
+    the in-memory project but loads chunks from disk instead of re-
+    tokenising. A random UUID would orphan every snapshot.
+    """
+    key = req.url or (os.path.abspath(req.path) if req.path else "")
+    if not key:
+        # nothing identifying provided; fall back to a one-shot hash so the
+        # response still has an id, but the snapshot won't be reused.
+        key = "anonymous"
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:8]
+
+
 @router.post("/scan", response_model=ProjectInfo)
 async def start_scan(req: ScanRequest, background_tasks: BackgroundTasks,
                      x_api_key: str | None = Header(None)):
-    project_id = str(uuid.uuid4())[:8]
+    project_id = _project_id_for(req)
     info = ProjectInfo(id=project_id, name="", status="pending")
     projects = get_projects()
     projects[project_id] = {"info": info, "wiki": None, "project": None, "progress": []}
@@ -173,6 +190,7 @@ async def _run_scan(project_id: str, req: ScanRequest, user_api_key: str | None)
                 rag = await store.load(project_id)
 
                 if rag is None:
+                    progress("Building chat index (no prior snapshot)…")
                     # No prior snapshot -- full build off the event loop.
                     def _build_from_scratch() -> SimpleRAG:
                         r = SimpleRAG(
@@ -188,6 +206,7 @@ async def _run_scan(project_id: str, req: ScanRequest, user_api_key: str | None)
                     loop = asyncio.get_event_loop()
                     rag = await loop.run_in_executor(None, _build_from_scratch)
                 else:
+                    progress(f"Reloaded chat index from snapshot ({len(rag.chunks)} chunks)")
                     # Incremental path: diff file hashes and only re-chunk
                     # what actually changed. We do this in an executor too
                     # because hashing every file's body is CPU work.

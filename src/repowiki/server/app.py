@@ -68,10 +68,37 @@ def create_app():
     async def health():
         return {"status": "ok", "version": "0.1.0"}
 
-    # serve embedded frontend (if built)
+    # serve embedded frontend (if built). The custom subclass returns the
+    # SPA's index.html for any path the bundle doesn't contain, so deep
+    # links like /project/<id>/source resolve through react-router instead
+    # of hitting a 404 wall when the user reloads or shares a URL.
     from pathlib import Path
+
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+    from starlette.responses import FileResponse
+
     static_dir = Path(__file__).parent / "static"
     if static_dir.is_dir():
-        app.mount("/", StaticFiles(directory=str(static_dir), html=True))
+        index_path = static_dir / "index.html"
+
+        class SpaStaticFiles(StaticFiles):
+            async def get_response(self, path, scope):
+                # Starlette's StaticFiles raises HTTPException(404) when
+                # the requested file isn't on disk; older versions return a
+                # 404 Response instead. Handle both, but never hijack API
+                # paths -- those must keep their real 404.
+                if path.startswith("api/"):
+                    return await super().get_response(path, scope)
+                try:
+                    response = await super().get_response(path, scope)
+                except StarletteHTTPException as exc:
+                    if exc.status_code == 404 and index_path.is_file():
+                        return FileResponse(str(index_path))
+                    raise
+                if response.status_code == 404 and index_path.is_file():
+                    return FileResponse(str(index_path))
+                return response
+
+        app.mount("/", SpaStaticFiles(directory=str(static_dir), html=True))
 
     return app

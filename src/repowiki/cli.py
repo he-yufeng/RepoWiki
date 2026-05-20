@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import click
 from rich.console import Console
 from rich.table import Table
@@ -10,6 +12,22 @@ from rich.tree import Tree
 from repowiki import __version__
 from repowiki.config import Config, resolve_model
 from repowiki.ingest.github import parse_git_url
+
+# Force UTF-8 on stdio so Rich's tree glyphs and emoji icons don't crash
+# on Windows code pages like GBK / cp936 (default zh-CN). For stdout/stderr
+# errors="replace" means the worst case is a visual ? instead of a traceback;
+# stdin uses strict so we'd rather fail loudly than ship a bad surrogate to
+# the LLM (DeepSeek rejects requests with lone surrogates).
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+    try:
+        sys.stdin.reconfigure(encoding="utf-8")
+    except (AttributeError, OSError):
+        pass
 
 console = Console()
 
@@ -381,8 +399,22 @@ def chat(path_or_url: str, model: str | None, lang: str | None, top_k: int):
         from rich.markdown import Markdown
         from rich.table import Table as RichTable
 
-        chunks = rag.retrieve(question, top_k=top_k)
-        if not chunks:
+        # Augment the BM25 query with the last user turn so short follow-ups
+        # ("what does it return?", "where?") still retrieve relevant code.
+        # BM25 ignores tokens that aren't in the index, so adding history
+        # only helps and never poisons -- worst case the rank is unchanged.
+        retrieval_query = question
+        for turn in reversed(history):
+            if turn.get("role") == "user":
+                retrieval_query = f"{turn['content']} {question}"
+                break
+
+        chunks = rag.retrieve(retrieval_query, top_k=top_k)
+
+        # No retrieval AND no history = user asked a brand-new question that
+        # has no obvious connection to the indexed code. Surface that
+        # honestly rather than fabricate an answer.
+        if not chunks and not history:
             console.print("[yellow]No relevant code found in the index.[/]\n")
             return
 
@@ -399,21 +431,29 @@ def chat(path_or_url: str, model: str | None, lang: str | None, top_k: int):
                 f"### {chunk.file_path} (lines {chunk.line_start}-{chunk.line_end})\n"
                 f"```\n{chunk.content}\n```"
             )
-        console.print("[dim]Sources:[/]")
-        console.print(sources)
+        if chunks:
+            console.print("[dim]Sources:[/]")
+            console.print(sources)
+        else:
+            console.print("[dim](no new sources; answering from prior turn)[/]")
         console.print()
 
         messages = build_chat_prompt(
             question, "\n\n".join(context_parts), cfg.language, history=history,
         )
-        # buffer the stream so we can render the final answer as Markdown
+        # Buffer the stream so we can render the final answer as Markdown
         # in one pass (Rich's Markdown doesn't support incremental render).
-        # Print a heartbeat dot every chunk so the user sees progress.
+        # Print a heartbeat dot at most every 10 chunks so the user sees
+        # progress without being drowned in dots (DeepSeek and friends
+        # often emit char-by-char).
         buffer = []
         try:
+            stream_chunks = 0
             async for piece in llm.stream(messages):
                 buffer.append(piece)
-                console.print(".", end="", soft_wrap=True)
+                stream_chunks += 1
+                if stream_chunks % 10 == 0:
+                    console.print(".", end="", soft_wrap=True)
         except LLMError as e:
             console.print(f"\n[red]LLM error:[/] {e}\n")
             return

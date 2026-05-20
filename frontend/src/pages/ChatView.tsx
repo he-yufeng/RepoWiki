@@ -8,13 +8,19 @@ import {
 } from "../stores/wiki";
 import { markdownToHtml } from "../lib/markdown";
 
+// Module-level stable reference so the Zustand selector below doesn't return
+// a brand-new array literal on every render when chatHistory[projectId] is
+// undefined — that pattern causes Object.is to fail and triggers a render
+// loop (React error #185).
+const EMPTY_MESSAGES: ChatMessage[] = [];
+
 export default function ChatView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const projectId = id ?? "";
 
   const messages = useWikiStore((s) =>
-    projectId ? s.chatHistory[projectId] ?? [] : [],
+    projectId ? s.chatHistory[projectId] ?? EMPTY_MESSAGES : EMPTY_MESSAGES,
   );
   const addChatMessage = useWikiStore((s) => s.addChatMessage);
   const appendToLastChat = useWikiStore((s) => s.appendToLastChat);
