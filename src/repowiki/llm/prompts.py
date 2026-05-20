@@ -104,10 +104,15 @@ def build_module_prompt(
 
 
 def build_architecture_prompt(
-    file_tree: str,
-    key_files: str,
+    file_tree: str,  # retained for signature compatibility; no longer in the prompt
+    module_summaries: str,
     language: str = "en",
 ) -> list[dict]:
+    # We deliberately drop the file_tree from the user message: module_summaries
+    # already names every module and its purpose, and re-sending the tree mostly
+    # served to let the LLM hallucinate components that weren't represented by
+    # any analyzed module.
+    del file_tree  # explicit no-op to make the intent obvious
     return [
         {
             "role": "system",
@@ -115,14 +120,15 @@ def build_architecture_prompt(
                 "You are a software architect analyzing a codebase. "
                 "Identify the architecture pattern and generate Mermaid diagrams. "
                 "Mermaid syntax must be valid. Use simple node names (no special chars). "
+                "Components MUST be derived from the module summaries provided; "
+                "do not invent components that aren't represented by a module. "
                 f"{_lang_instruction(language)}"
             ),
         },
         {
             "role": "user",
             "content": (
-                f"## File Tree\n```\n{file_tree}\n```\n\n"
-                f"## Key Files\n{key_files}\n\n"
+                f"## Module Summaries\n{module_summaries}\n\n"
                 "Analyze the architecture. Output JSON:\n"
                 "{\n"
                 '  "architecture_type": "one of: monolith, client-server, microservices, library, cli-tool, framework, plugin-system, pipeline",\n'
@@ -176,12 +182,23 @@ def build_reading_guide_prompt(
     ]
 
 
+_CHAT_HISTORY_TURNS = 5  # keep last N user+assistant pairs
+
+
 def build_chat_prompt(
     question: str,
     context_chunks: str,
     language: str = "en",
+    history: list[dict] | None = None,
 ) -> list[dict]:
-    return [
+    """build the messages list for a chat turn.
+
+    ``history`` is a list of ``{"role": "user"|"assistant", "content": str}``
+    dicts representing past turns of the current conversation. We keep the
+    most recent ``_CHAT_HISTORY_TURNS`` user+assistant pairs (the last 2*N
+    messages) so multi-turn coherence works without unbounded token growth.
+    """
+    messages: list[dict] = [
         {
             "role": "system",
             "content": (
@@ -191,15 +208,45 @@ def build_chat_prompt(
                 "Be direct -- answer the question, don't give a lecture. "
                 f"{_lang_instruction(language)}"
             ),
-        },
+        }
+    ]
+
+    if history:
+        kept = _trim_history(history, _CHAT_HISTORY_TURNS)
+        for turn in kept:
+            role = turn.get("role")
+            content = turn.get("content") or ""
+            if role in ("user", "assistant") and content.strip():
+                messages.append({"role": role, "content": content})
+
+    messages.append(
         {
             "role": "user",
             "content": (
                 f"## Relevant Code\n{context_chunks}\n\n"
                 f"## Question\n{question}"
             ),
-        },
-    ]
+        }
+    )
+    return messages
+
+
+def _trim_history(history: list[dict], max_turns: int) -> list[dict]:
+    """keep the most recent ``max_turns`` user+assistant pairs.
+
+    Walks backward from the end so the *latest* turns are retained, then
+    reverses to preserve chronological order.
+    """
+    kept: list[dict] = []
+    pairs = 0
+    for turn in reversed(history):
+        if pairs >= max_turns and turn.get("role") == "user":
+            # stop on the user turn that would start a new pair beyond budget
+            break
+        kept.append(turn)
+        if turn.get("role") == "user":
+            pairs += 1
+    return list(reversed(kept))
 
 
 def extract_json(text: str) -> dict | list | None:
@@ -228,3 +275,41 @@ def extract_json(text: str) -> dict | list | None:
             continue
 
     return None
+
+
+def missing_required_keys(data: object, required: list[str]) -> list[str]:
+    """given parsed JSON output, return the required keys it's missing.
+
+    Returns an empty list when ``data`` is a dict containing every key in
+    ``required``. Non-dict inputs are treated as missing every key.
+    """
+    if not isinstance(data, dict):
+        return list(required)
+    return [k for k in required if k not in data or data[k] in (None, "", [])]
+
+
+def build_repair_prompt(
+    original_messages: list[dict],
+    raw_response: str,
+    missing_keys: list[str],
+) -> list[dict]:
+    """append a corrective turn asking the LLM to re-emit valid JSON.
+
+    Reuses the original messages so the model still has the original
+    context, then explains exactly what's wrong. Capped at one round at
+    the call site to keep cost bounded.
+    """
+    messages = list(original_messages)
+    messages.append({"role": "assistant", "content": raw_response})
+    messages.append(
+        {
+            "role": "user",
+            "content": (
+                "Your previous response was not valid JSON or was missing "
+                f"required fields: {', '.join(missing_keys)}. "
+                "Re-emit ONLY the JSON object with all required fields filled in. "
+                "No prose, no markdown fences."
+            ),
+        }
+    )
+    return messages

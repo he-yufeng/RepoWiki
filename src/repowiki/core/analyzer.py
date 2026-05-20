@@ -22,7 +22,9 @@ from repowiki.llm.prompts import (
     build_module_prompt,
     build_overview_prompt,
     build_reading_guide_prompt,
+    build_repair_prompt,
     extract_json,
+    missing_required_keys,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,72 @@ def _approx_tokens(text: str) -> int:
         return len(enc.encode(text))
     except Exception:
         return max(1, len(text) // 4)
+
+
+def _approx_tokens_batch(texts: list[str]) -> list[int]:
+    """token-count a batch of texts in one call.
+
+    Loads the tiktoken encoding once and uses :meth:`encode_batch` (which is
+    parallelised internally), instead of paying the encoding lookup +
+    per-string Python overhead for every file. Falls back to ``chars // 4``
+    when tiktoken isn't available, mirroring :func:`_approx_tokens`.
+    """
+    if not texts:
+        return []
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
+        # encode_batch returns a list of token-id lists; we just need lengths.
+        return [len(toks) for toks in enc.encode_batch(texts)]
+    except Exception:
+        return [max(1, len(t) // 4) for t in texts]
+
+
+def _format_rankings(
+    project: ProjectContext,
+    rankings: list[tuple[str, float]] | None,
+    top_n: int = 20,
+) -> str:
+    """render a markdown list of (rank, path, tag, lines) for the LLM.
+
+    When ``rankings`` is provided we sort by PageRank score (largest first);
+    otherwise we fall back to scan order so the prompt still has *something*
+    but the LLM no longer sees a hand-wavy "top 20 files".
+    """
+    info_by_path = {f.path: f for f in project.files}
+    if rankings:
+        ordered_paths = [path for path, _ in rankings if path in info_by_path]
+    else:
+        ordered_paths = [f.path for f in project.files]
+
+    parts: list[str] = []
+    for i, path in enumerate(ordered_paths[:top_n], 1):
+        f = info_by_path[path]
+        tag = ""
+        if f.is_entrypoint:
+            tag = " [entrypoint]"
+        elif f.is_config:
+            tag = " [config]"
+        parts.append(f"{i}. {path}{tag} ({f.lines} lines)")
+    return "\n".join(parts)
+
+
+def _module_summary_block(module_docs: list) -> str:
+    """produce a stable text summary of the analyzed modules.
+
+    Used both for the architecture prompt (instead of re-sending key_files)
+    and for the reading-guide prompt. Output is sorted by name so the hash
+    is deterministic across runs that complete tasks in different orders.
+    """
+    rows = sorted(
+        ((m.name, m.purpose or "", len(m.files)) for m in module_docs),
+        key=lambda r: r[0],
+    )
+    parts = [
+        f"- **{name}** ({nfiles} file{'s' if nfiles != 1 else ''}): {purpose}"
+        for name, purpose, nfiles in rows
+    ]
+    return "\n".join(parts)
 
 
 class Analyzer:
@@ -74,8 +142,15 @@ class Analyzer:
         self,
         project: ProjectContext,
         on_progress: Callable[[str], None] | None = None,
+        rankings: list[tuple[str, float]] | None = None,
     ) -> WikiData:
-        """run the full analysis pipeline and return WikiData."""
+        """run the full analysis pipeline and return WikiData.
+
+        ``rankings`` is the PageRank-sorted list of (path, score) from
+        :class:`DependencyGraph`. When supplied, the reading guide uses real
+        importance ranks instead of scan order. The caller is expected to
+        build the dependency graph once and pass it here.
+        """
         self._on_progress = on_progress
         self.errors = []
 
@@ -104,14 +179,18 @@ class Analyzer:
             modules_map, overview.one_liner, project, progress
         )
 
-        # 4. generate architecture diagram
+        # 4. generate architecture diagram. It now consumes the module
+        # summaries instead of re-sending key_files -- those were already
+        # spent on the overview pass.
         progress("Detecting architecture...")
-        architecture = await self._generate_architecture(project, key_files_text, structure_hash)
+        architecture = await self._generate_architecture(
+            project, module_docs, structure_hash
+        )
 
-        # 5. generate reading guide (needs module summaries + rankings placeholder)
+        # 5. generate reading guide using real PageRank when provided
         progress("Creating reading guide...")
         reading_guide = await self._generate_reading_guide(
-            project, module_docs, structure_hash
+            project, module_docs, structure_hash, rankings=rankings,
         )
 
         progress("Done!")
@@ -147,25 +226,32 @@ class Analyzer:
 
         Files are added in priority order (config > entrypoint > pagerank
         in the dependency graph) until ``max_context_tokens`` is exhausted.
-        Each file body is itself capped at 4 KB. Token counting uses tiktoken
-        if available, otherwise the cheap chars/4 estimate.
+        Each file body is itself capped at 4 KB. Token counting batches every
+        block through a single ``tiktoken.encode_batch`` call -- previously we
+        re-encoded one file at a time, which dominated this function on large
+        projects with many config/entrypoint files.
         """
         candidates = [f for f in project.files if f.is_config or f.is_entrypoint]
         ordered = self._order_by_importance(candidates, project)
 
-        budget = self.max_context_tokens
-        parts: list[str] = []
-        used = 0
+        # Build every block up front, then token-count them in one batch.
+        blocks: list[str] = []
+        stubs: list[str] = []
         for f in ordered:
             content = f.content if f.content else f.preview
             if len(content) > 4096:
                 content = content[:4096] + "\n... (truncated)"
-            block = f"### {f.path}\n```{f.language}\n{content}\n```"
-            cost = _approx_tokens(block)
+            blocks.append(f"### {f.path}\n```{f.language}\n{content}\n```")
+            stubs.append(f"### {f.path}\n(skipped to fit context budget)\n")
+
+        block_costs = _approx_tokens_batch(blocks)
+        stub_costs = _approx_tokens_batch(stubs)
+
+        budget = self.max_context_tokens
+        parts: list[str] = []
+        used = 0
+        for block, stub, cost, stub_cost in zip(blocks, stubs, block_costs, stub_costs):
             if budget and used + cost > budget:
-                # try to fit a short stub so the LLM at least knows the file exists
-                stub = f"### {f.path}\n(skipped to fit context budget)\n"
-                stub_cost = _approx_tokens(stub)
                 if used + stub_cost <= budget:
                     parts.append(stub)
                     used += stub_cost
@@ -214,6 +300,19 @@ class Analyzer:
             return ProjectOverview(name=project.name)
 
         data = extract_json(raw)
+        # one-shot repair when the first response missed required fields
+        missing = missing_required_keys(data, ["name", "one_liner"])
+        if missing:
+            logger.info("overview JSON missing %s, asking for repair", missing)
+            try:
+                raw = await self.llm.complete(
+                    build_repair_prompt(messages, raw or "", missing),
+                    max_tokens=4096,
+                )
+                data = extract_json(raw) or data
+            except LLMError as e:
+                logger.warning("overview repair call failed: %s", e)
+
         if not data or not isinstance(data, dict):
             logger.warning("Failed to parse overview JSON, using defaults")
             return ProjectOverview(name=project.name)
@@ -300,6 +399,31 @@ class Analyzer:
             buckets.setdefault(key, []).append(f)
         return buckets
 
+    @staticmethod
+    def _build_module_context(
+        name: str, files: list[FileInfo]
+    ) -> tuple[str, str]:
+        """assemble the LLM context + cache key for one module.
+
+        Pure-synchronous CPU work (string joins + sha256). Designed to run on
+        an executor in parallel with peer modules so the analyzer's main loop
+        can enter the LLM stage as soon as the *first* context is ready.
+        """
+        files_text_parts: list[str] = []
+        content_parts: list[str] = []
+        for f in files:
+            content = f.content if f.content else f.preview
+            if len(content) > 4096:
+                content = content[:4096] + "\n... (truncated)"
+            files_text_parts.append(
+                f"### {f.path} ({f.language})\n```{f.language}\n{content}\n```"
+            )
+            content_parts.append(content)
+
+        files_context = "\n\n".join(files_text_parts)
+        cache_key = f"module:{name}:{content_hash(''.join(content_parts))}"
+        return files_context, cache_key
+
     async def _analyze_modules(
         self,
         modules: dict[str, list[FileInfo]],
@@ -307,9 +431,21 @@ class Analyzer:
         project: ProjectContext,
         progress: Callable[[str], None],
     ) -> list[ModuleDoc]:
-        tasks = []
-        for name, files in modules.items():
-            tasks.append(self._analyze_one_module(name, files, project_summary, project))
+        # Pre-build every module's context concurrently in the default
+        # executor. Before this change, each call to ``_analyze_one_module``
+        # did the string concat + content_hash inline (synchronously) before
+        # touching the LLM; with N modules that was N sequential prep passes.
+        loop = asyncio.get_event_loop()
+        items = list(modules.items())
+        contexts = await asyncio.gather(*[
+            loop.run_in_executor(None, self._build_module_context, name, files)
+            for name, files in items
+        ])
+
+        tasks = [
+            self._analyze_one_module(name, files, ctx, project_summary)
+            for (name, files), ctx in zip(items, contexts)
+        ]
 
         results = []
         for i, coro in enumerate(asyncio.as_completed(tasks)):
@@ -326,44 +462,37 @@ class Analyzer:
         self,
         name: str,
         files: list[FileInfo],
+        ctx: tuple[str, str],
         project_summary: str,
-        project: ProjectContext,
     ) -> ModuleDoc | None:
+        files_context, cache_key = ctx
+
+        # Cache lookup is async (sqlite) but very cheap -- outside the
+        # semaphore so an entirely cached run incurs zero serialization.
+        cached = await self.cache.get(cache_key)
+        if cached:
+            try:
+                return ModuleDoc(**cached)
+            except Exception:
+                pass
+
+        # Incremental mode: skip the LLM entirely for unchanged modules.
+        if self.changed_paths is not None:
+            module_paths = {f.path for f in files}
+            if module_paths.isdisjoint(self.changed_paths):
+                self.skipped_modules.append(name)
+                if self._on_progress:
+                    self._on_progress(f"[skip] module {name!r} unchanged")
+                return ModuleDoc(
+                    name=name,
+                    purpose=f"Module containing {len(files)} files (skipped, unchanged since prior run)",
+                )
+
+        messages = build_module_prompt(name, files_context, project_summary, self.language)
+
+        # The semaphore now only covers the actual provider call, so
+        # --concurrency=5 really means five concurrent LLM requests.
         async with self._sem:
-            # build context for this module
-            files_text_parts = []
-            content_parts = []
-            for f in files:
-                content = f.content if f.content else f.preview
-                if len(content) > 4096:
-                    content = content[:4096] + "\n... (truncated)"
-                files_text_parts.append(f"### {f.path} ({f.language})\n```{f.language}\n{content}\n```")
-                content_parts.append(content)
-
-            files_context = "\n\n".join(files_text_parts)
-            cache_key = f"module:{name}:{content_hash(''.join(content_parts))}"
-
-            cached = await self.cache.get(cache_key)
-            if cached:
-                try:
-                    return ModuleDoc(**cached)
-                except Exception:
-                    pass
-
-            # incremental mode: if none of the module's files appear in the
-            # changed_paths set, skip the LLM call and emit a placeholder.
-            if self.changed_paths is not None:
-                module_paths = {f.path for f in files}
-                if module_paths.isdisjoint(self.changed_paths):
-                    self.skipped_modules.append(name)
-                    if self._on_progress:
-                        self._on_progress(f"[skip] module {name!r} unchanged")
-                    return ModuleDoc(
-                        name=name,
-                        purpose=f"Module containing {len(files)} files (skipped, unchanged since prior run)",
-                    )
-
-            messages = build_module_prompt(name, files_context, project_summary, self.language)
             try:
                 raw = await self.llm.complete(messages, max_tokens=4096)
             except LLMError as e:
@@ -373,25 +502,35 @@ class Analyzer:
                     purpose=f"Module containing {len(files)} files (analysis skipped: {e})",
                 )
 
-            data = extract_json(raw)
-            if not data or not isinstance(data, dict):
-                logger.warning("Failed to parse module '%s' JSON", name)
-                return ModuleDoc(name=name, purpose=f"Module containing {len(files)} files")
+        data = extract_json(raw)
+        if not data or not isinstance(data, dict):
+            logger.warning("Failed to parse module '%s' JSON", name)
+            return ModuleDoc(name=name, purpose=f"Module containing {len(files)} files")
 
-            # ensure name is present (LLM sometimes omits it)
-            data.setdefault("name", name)
-            filtered = {k: v for k, v in data.items() if k in ModuleDoc.model_fields}
-            try:
-                doc = ModuleDoc(**filtered)
-            except Exception:
-                doc = ModuleDoc(name=name, purpose=data.get("purpose", ""))
-            await self.cache.put(cache_key, doc.model_dump())
-            return doc
+        # ensure name is present (LLM sometimes omits it)
+        data.setdefault("name", name)
+        filtered = {k: v for k, v in data.items() if k in ModuleDoc.model_fields}
+        try:
+            doc = ModuleDoc(**filtered)
+        except Exception:
+            doc = ModuleDoc(name=name, purpose=data.get("purpose", ""))
+        await self.cache.put(cache_key, doc.model_dump())
+        return doc
 
     async def _generate_architecture(
-        self, project: ProjectContext, key_files: str, tree_hash: str
+        self,
+        project: ProjectContext,
+        module_docs: list[ModuleDoc],
+        tree_hash: str,
     ) -> ArchitectureDiagram:
-        cache_key = f"arch:{tree_hash}"
+        # cache key folds in module summaries so re-running with different
+        # module analyses (e.g. after --since invalidates some) doesn't
+        # silently return stale arch JSON.
+        module_summary_text = _module_summary_block(module_docs)
+        summary_hash = content_hash(module_summary_text)
+        # v3: prompt no longer carries file_tree, so old v2 entries reflect a
+        # different prompt shape -- bump the key to force a clean recompute.
+        cache_key = f"arch:v3:{tree_hash}:{summary_hash}"
         cached = await self.cache.get(cache_key)
         if cached:
             try:
@@ -399,7 +538,9 @@ class Analyzer:
             except Exception:
                 pass
 
-        messages = build_architecture_prompt(project.file_tree, key_files, self.language)
+        messages = build_architecture_prompt(
+            project.file_tree, module_summary_text, self.language
+        )
         try:
             raw = await self.llm.complete(messages, max_tokens=4096)
         except LLMError as e:
@@ -424,8 +565,14 @@ class Analyzer:
         project: ProjectContext,
         module_docs: list[ModuleDoc],
         tree_hash: str,
+        *,
+        rankings: list[tuple[str, float]] | None = None,
     ) -> ReadingGuide:
-        cache_key = f"guide:{tree_hash}"
+        rankings_text = _format_rankings(project, rankings)
+        # v2 cache key folds in the rankings so the guide is recomputed when
+        # PageRank shifts (e.g. after a refactor that re-routes imports).
+        ranking_hash = content_hash(rankings_text)
+        cache_key = f"guide:v2:{tree_hash}:{ranking_hash}"
         cached = await self.cache.get(cache_key)
         if cached:
             try:
@@ -433,23 +580,9 @@ class Analyzer:
             except Exception:
                 pass
 
-        # build rankings placeholder (will be replaced by PageRank in Phase 3)
-        rankings_parts = []
-        for i, f in enumerate(project.files[:20], 1):
-            tag = ""
-            if f.is_entrypoint:
-                tag = " [entrypoint]"
-            elif f.is_config:
-                tag = " [config]"
-            rankings_parts.append(f"{i}. {f.path}{tag} ({f.lines} lines)")
-        rankings = "\n".join(rankings_parts)
+        module_summaries = _module_summary_block(module_docs)
 
-        module_parts = []
-        for m in module_docs:
-            module_parts.append(f"- **{m.name}**: {m.purpose}")
-        module_summaries = "\n".join(module_parts)
-
-        messages = build_reading_guide_prompt(rankings, module_summaries, self.language)
+        messages = build_reading_guide_prompt(rankings_text, module_summaries, self.language)
         try:
             raw = await self.llm.complete(messages, max_tokens=4096)
         except LLMError as e:
