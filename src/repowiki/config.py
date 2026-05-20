@@ -50,6 +50,19 @@ class Config:
     # token budget for the slice of project context we ship to the LLM
     # (overview / architecture / reading-guide passes). 0 = unlimited.
     max_context_tokens: int = 32_000
+    # --- RAG / chat retrieval tuning --------------------------------------
+    # All of these are runtime-tunable so the user can adjust to repo shape
+    # without touching code. Defaults reproduce the original behaviour.
+    rag_chunk_max_lines: int = 60
+    rag_chunk_soft_lines: int = 30
+    rag_chunk_overlap_lines: int = 5
+    rag_top_k: int = 5
+    rag_min_score: float = 0.0
+    rag_bm25_k1: float = 1.5
+    rag_bm25_b: float = 0.75
+    # When true, also feed the generated wiki markdown into the chat index
+    # so questions about the architecture page hit the page directly.
+    rag_index_wiki: bool = True
 
     @classmethod
     def load(cls) -> Config:
@@ -82,6 +95,36 @@ class Config:
                 cfg.max_context_tokens = max(0, int(val))
             except ValueError:
                 pass
+
+        # RAG tuning -- one env var per knob, parsed permissively so a typo
+        # just falls back to the hardcoded default.
+        def _int_env(name: str, default: int) -> int:
+            val = os.getenv(name)
+            if not val:
+                return default
+            try:
+                return int(val)
+            except ValueError:
+                return default
+
+        def _float_env(name: str, default: float) -> float:
+            val = os.getenv(name)
+            if not val:
+                return default
+            try:
+                return float(val)
+            except ValueError:
+                return default
+
+        cfg.rag_chunk_max_lines = _int_env("REPOWIKI_RAG_CHUNK_MAX_LINES", cfg.rag_chunk_max_lines)
+        cfg.rag_chunk_soft_lines = _int_env("REPOWIKI_RAG_CHUNK_SOFT_LINES", cfg.rag_chunk_soft_lines)
+        cfg.rag_chunk_overlap_lines = _int_env("REPOWIKI_RAG_CHUNK_OVERLAP", cfg.rag_chunk_overlap_lines)
+        cfg.rag_top_k = _int_env("REPOWIKI_RAG_TOP_K", cfg.rag_top_k)
+        cfg.rag_min_score = _float_env("REPOWIKI_RAG_MIN_SCORE", cfg.rag_min_score)
+        cfg.rag_bm25_k1 = _float_env("REPOWIKI_RAG_BM25_K1", cfg.rag_bm25_k1)
+        cfg.rag_bm25_b = _float_env("REPOWIKI_RAG_BM25_B", cfg.rag_bm25_b)
+        if (val := os.getenv("REPOWIKI_RAG_INDEX_WIKI")) is not None:
+            cfg.rag_index_wiki = val.strip().lower() not in ("0", "false", "no", "")
 
         # fall back to common provider keys
         if not cfg.api_key:
