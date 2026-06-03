@@ -27,9 +27,9 @@
 pip install repowiki
 
 # 设置 API Key（DeepSeek、OpenAI、Anthropic 等）
-export DEEPSEEK_API_KEY=sk-xxx
+export DEEPSEEK_API_KEY=<your-api-key>
 # 或者
-repowiki config set api_key sk-xxx
+repowiki config set api_key <your-api-key>
 
 # 扫描本地项目
 repowiki scan ./my-project
@@ -44,6 +44,8 @@ repowiki scan ./my-project --format html --open
 pip install repowiki[web]
 repowiki serve
 ```
+
+扫描时会遵守 `.gitignore` 和 `.repowikiignore`，并默认跳过 `.env`、`.env.local`、`.npmrc`、`.pypirc`、SSH 私钥等本地敏感文件，避免把不该进入文档上下文的内容喂给后续分析。
 
 ## 核心功能
 

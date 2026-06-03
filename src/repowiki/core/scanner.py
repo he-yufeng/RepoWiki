@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from fnmatch import fnmatch
 from pathlib import Path
 
 from repowiki.core.models import FileInfo
@@ -31,6 +32,19 @@ _SKIP_EXTS = {
     ".min.js", ".min.css",
     ".map",
     ".wasm",
+}
+
+_SENSITIVE_NAMES = {
+    ".env",
+    ".env.local",
+    ".env.production",
+    ".env.development",
+    ".npmrc",
+    ".pypirc",
+    ".netrc",
+    "id_rsa",
+    "id_ed25519",
+    "known_hosts",
 }
 
 _MINIFIED_SOURCE_EXTS = {".js", ".mjs", ".cjs", ".css"}
@@ -119,6 +133,56 @@ def _has_skipped_suffix(path: Path) -> bool:
     return any(name.endswith(ext) for ext in _SKIP_EXTS)
 
 
+class IgnoreRules:
+    def __init__(self, patterns: list[tuple[str, bool]]):
+        self.patterns = patterns
+
+    @classmethod
+    def from_root(cls, root: Path) -> "IgnoreRules":
+        patterns: list[tuple[str, bool]] = []
+        for name in (".gitignore", ".repowikiignore"):
+            path = root / name
+            if not path.exists():
+                continue
+            for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                negated = line.startswith("!")
+                if negated:
+                    line = line[1:].strip()
+                if line:
+                    patterns.append((line.replace("\\", "/"), negated))
+        return cls(patterns)
+
+    def matches(self, rel_path: str, *, is_dir: bool = False) -> bool:
+        rel_path = rel_path.replace("\\", "/").strip("/")
+        ignored = False
+        for pattern, negated in self.patterns:
+            if _matches_ignore_pattern(pattern, rel_path, is_dir=is_dir):
+                ignored = not negated
+        return ignored
+
+
+def _matches_ignore_pattern(pattern: str, rel_path: str, *, is_dir: bool) -> bool:
+    dir_pattern = pattern.endswith("/")
+    pattern = pattern.strip("/")
+    if not pattern:
+        return False
+    if dir_pattern:
+        return is_dir and (rel_path == pattern or rel_path.startswith(pattern + "/"))
+    if "/" in pattern:
+        return fnmatch(rel_path, pattern) or rel_path.startswith(pattern.rstrip("*") + "/")
+    return any(fnmatch(part, pattern) for part in rel_path.split("/"))
+
+
+def _is_sensitive_name(path: Path) -> bool:
+    name = path.name.lower()
+    if name in _SENSITIVE_NAMES:
+        return True
+    return name.startswith(".env.") and name != ".env.example"
+
+
 def _looks_minified_source(path: str, text: str) -> bool:
     if Path(path).suffix.lower() not in _MINIFIED_SOURCE_EXTS:
         return False
@@ -189,12 +253,19 @@ def scan_directory(
         raise FileNotFoundError(f"Not a directory: {root}")
 
     results: list[FileInfo] = []
+    ignore_rules = IgnoreRules.from_root(root)
 
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
-        dirnames[:] = [
-            d for d in dirnames
-            if d not in _SKIP_DIRS and not d.endswith(".egg-info")
-        ]
+        kept_dirs = []
+        for dirname in dirnames:
+            full_dir = Path(dirpath) / dirname
+            rel_dir = full_dir.relative_to(root).as_posix()
+            if dirname in _SKIP_DIRS or dirname.endswith(".egg-info"):
+                continue
+            if ignore_rules.matches(rel_dir, is_dir=True):
+                continue
+            kept_dirs.append(dirname)
+        dirnames[:] = kept_dirs
 
         for fname in filenames:
             if len(results) >= max_files:
@@ -203,8 +274,15 @@ def scan_directory(
 
             full = Path(dirpath) / fname
             rel = str(full.relative_to(root))
+            rel_posix = full.relative_to(root).as_posix()
 
             if full.is_symlink():
+                continue
+
+            if ignore_rules.matches(rel_posix):
+                continue
+
+            if _is_sensitive_name(full):
                 continue
 
             if _has_skipped_suffix(full):

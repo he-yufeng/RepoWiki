@@ -27,9 +27,9 @@
 pip install repowiki
 
 # set your API key (DeepSeek, OpenAI, Anthropic, etc.)
-export DEEPSEEK_API_KEY=sk-xxx
+export DEEPSEEK_API_KEY=<your-api-key>
 # or
-repowiki config set api_key sk-xxx
+repowiki config set api_key <your-api-key>
 
 # scan a local project
 repowiki scan ./my-project
@@ -44,6 +44,8 @@ repowiki scan ./my-project --format html --open
 pip install repowiki[web]
 repowiki serve
 ```
+
+RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips common local secret files such as `.env`, `.env.local`, `.npmrc`, `.pypirc`, and SSH private keys by default.
 
 ## Features
 

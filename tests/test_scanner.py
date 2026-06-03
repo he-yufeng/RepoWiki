@@ -24,3 +24,32 @@ def test_scan_skips_generated_bundle_lines(tmp_path):
 
     assert "src/main.js" in paths
     assert "src/server/static/assets/chunk-ABC123.js" not in paths
+
+
+def test_scan_respects_gitignore_and_repowikiignore(tmp_path):
+    (tmp_path / ".gitignore").write_text("dist/\n*.log\n", encoding="utf-8")
+    (tmp_path / ".repowikiignore").write_text("private.md\n", encoding="utf-8")
+    (tmp_path / "dist").mkdir()
+    (tmp_path / "dist" / "bundle.js").write_text("console.log('built');\n", encoding="utf-8")
+    (tmp_path / "debug.log").write_text("noise\n", encoding="utf-8")
+    (tmp_path / "private.md").write_text("local notes\n", encoding="utf-8")
+    (tmp_path / "src.py").write_text("print('source')\n", encoding="utf-8")
+
+    paths = {f.path.replace("\\", "/") for f in scan_directory(tmp_path)}
+
+    assert "src.py" in paths
+    assert "dist/bundle.js" not in paths
+    assert "debug.log" not in paths
+    assert "private.md" not in paths
+
+
+def test_scan_skips_real_env_files_but_keeps_example(tmp_path):
+    (tmp_path / ".env").write_text("OPENAI_API_KEY=real-secret\n", encoding="utf-8")
+    (tmp_path / ".env.local").write_text("TOKEN=secret\n", encoding="utf-8")
+    (tmp_path / ".env.example").write_text("OPENAI_API_KEY=\n", encoding="utf-8")
+
+    paths = {f.path for f in scan_directory(tmp_path)}
+
+    assert ".env" not in paths
+    assert ".env.local" not in paths
+    assert ".env.example" in paths
