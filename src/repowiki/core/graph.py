@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import posixpath
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import networkx as nx
 
@@ -150,25 +151,25 @@ def _resolve_import(
 ) -> str | None:
     """try to resolve an import string to an actual file path in the project."""
     if language in ("python", "pyi"):
-        # convert dots to slashes: "foo.bar.baz" -> "foo/bar/baz"
-        rel = import_path.replace(".", "/")
+        rel = _resolve_python_module(import_path, source_file)
         candidates = [
             f"{rel}.py",
             f"{rel}/__init__.py",
-            f"src/{rel}.py",
-            f"src/{rel}/__init__.py",
         ]
+        if not rel.startswith("src/"):
+            candidates.extend([f"src/{rel}.py", f"src/{rel}/__init__.py"])
     elif language in ("javascript", "typescript", "jsx", "tsx", "mjs", "cjs"):
         if import_path.startswith("."):
-            # relative import
-            base_dir = str(Path(source_file).parent)
-            rel = str(Path(base_dir) / import_path)
+            base_dir = str(PurePosixPath(source_file).parent)
+            rel = posixpath.normpath(posixpath.join(base_dir, import_path))
         else:
             rel = import_path
         candidates = [
             rel,
             f"{rel}.ts", f"{rel}.tsx", f"{rel}.js", f"{rel}.jsx",
+            f"{rel}.mjs", f"{rel}.cjs",
             f"{rel}/index.ts", f"{rel}/index.tsx", f"{rel}/index.js",
+            f"{rel}/index.jsx", f"{rel}/index.mjs", f"{rel}/index.cjs",
         ]
     elif language == "go":
         # go imports are package paths, hard to resolve without go.mod
@@ -187,9 +188,22 @@ def _resolve_import(
         return None
 
     for c in candidates:
-        # normalize path
-        c = str(Path(c))
+        c = posixpath.normpath(c.replace("\\", "/"))
         if c in known_paths:
             return c
 
     return None
+
+
+def _resolve_python_module(import_path: str, source_file: str) -> str:
+    leading_dots = len(import_path) - len(import_path.lstrip("."))
+    module = import_path[leading_dots:].replace(".", "/")
+    if not leading_dots:
+        return module
+
+    source_dir = PurePosixPath(source_file.replace("\\", "/")).parent.parts
+    keep = max(0, len(source_dir) - leading_dots + 1)
+    parts = [*source_dir[:keep]]
+    if module:
+        parts.extend(module.split("/"))
+    return "/".join(parts)

@@ -55,6 +55,8 @@ repowiki serve
 - **模块文档** — 用途、关键文件、模块间关系、重要函数
 - **架构图** — 自动识别架构模式，Mermaid 可视化
 - **阅读指南** — 基于 PageRank 文件重要性排名的"从这里开始读"路径
+- **更准确的依赖图** — 解析 Python 包内相对导入和 JavaScript / TypeScript 相对模块，
+  再计算文件重要性，减少阅读顺序被漏边带偏
 - **Bundle 感知扫描** — 先跳过 minified JS/CSS 和生成式前端 chunk，避免浪费 LLM 上下文
 
 ### 多格式导出
@@ -101,7 +103,8 @@ Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby
 ## 工作原理
 
 1. **扫描** — 遍历目录树，过滤二进制、生成式 bundle 和超大文件，检测语言和入口文件
-2. **建图** — 解析 6 种语言的 import 语句，构建依赖图，PageRank 计算文件重要性
+2. **建图** — 解析 6 种语言的 import，正确处理 Python 包内相对导入和
+   JavaScript / TypeScript 相对模块，再用 PageRank 计算文件重要性
 3. **分析** — 4 步 LLM 分析（概览、模块、架构、阅读指南），并发执行
 4. **缓存** — SQLite 按内容 hash 缓存，重新扫描时跳过未变更文件
 5. **导出** — 组装 wiki 页面，注入 Mermaid 图和源码链接，按选定格式输出
