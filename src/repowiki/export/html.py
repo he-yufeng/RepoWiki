@@ -56,6 +56,13 @@ def _markdown_to_html(md: str) -> str:
     in_code = False
     code_lang = ""
     code_lines: list[str] = []
+    list_type: str | None = None  # "ul", "ol", or None when not inside a list
+
+    def close_list() -> None:
+        nonlocal list_type
+        if list_type is not None:
+            result.append(f"</{list_type}>")
+            list_type = None
 
     for line in lines:
         # fenced code blocks
@@ -69,6 +76,7 @@ def _markdown_to_html(md: str) -> str:
                 code_lines = []
                 in_code = False
             else:
+                close_list()
                 in_code = True
                 code_lang = line[3:].strip() or "text"
             continue
@@ -76,6 +84,27 @@ def _markdown_to_html(md: str) -> str:
         if in_code:
             code_lines.append(line)
             continue
+
+        # list items: wrap consecutive items in a single <ul>/<ol> so ordered
+        # lists keep their numbers and the markup stays valid HTML
+        if line.startswith("- "):
+            if list_type != "ul":
+                close_list()
+                result.append("<ul>")
+                list_type = "ul"
+            result.append(f"<li>{_inline_md(line[2:])}</li>")
+            continue
+        if re.match(r"^\d+\. ", line):
+            if list_type != "ol":
+                close_list()
+                result.append("<ol>")
+                list_type = "ol"
+            text = re.sub(r"^\d+\. ", "", line)
+            result.append(f"<li>{_inline_md(text)}</li>")
+            continue
+
+        # any other line ends an open list
+        close_list()
 
         # headings
         if line.startswith("# "):
@@ -86,16 +115,12 @@ def _markdown_to_html(md: str) -> str:
             result.append(f"<h3>{_inline_md(line[4:])}</h3>")
         elif line.startswith("> "):
             result.append(f"<blockquote>{_inline_md(line[2:])}</blockquote>")
-        elif line.startswith("- "):
-            result.append(f"<li>{_inline_md(line[2:])}</li>")
-        elif re.match(r"^\d+\. ", line):
-            text = re.sub(r"^\d+\. ", "", line)
-            result.append(f"<li>{_inline_md(text)}</li>")
         elif line.strip() == "":
             result.append("<br>")
         else:
             result.append(f"<p>{_inline_md(line)}</p>")
 
+    close_list()
     return "\n".join(result)
 
 
