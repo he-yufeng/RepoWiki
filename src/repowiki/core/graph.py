@@ -127,6 +127,20 @@ class DependencyGraph:
                 entries.append(node)
         return entries
 
+    def find_circular_dependencies(self, limit: int = 10) -> list[list[str]]:
+        """groups of files that import each other in a cycle.
+
+        Circular dependencies make a codebase harder to read and refactor -- you
+        can't fully understand one file without the others, and they invite
+        import-time ordering bugs. Returns each strongly connected component of
+        more than one file (a genuine cycle), largest first. Deterministic.
+        """
+        cycles = [
+            sorted(scc) for scc in nx.strongly_connected_components(self.graph) if len(scc) > 1
+        ]
+        cycles.sort(key=lambda c: (-len(c), c[0]))
+        return cycles[:limit]
+
 
 def _get_module(path: str) -> str:
     parts = Path(path).parts

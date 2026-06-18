@@ -224,4 +224,18 @@ class WikiBuilder:
                 lines.append(f"- `{e}`")
             lines.append("")
 
+        # circular dependencies (an architectural smell worth surfacing)
+        cycles = graph.find_circular_dependencies()
+        if cycles:
+            lines.append("## Circular Dependencies\n")
+            lines.append(
+                "These groups of files import each other in a cycle, so you can't "
+                "fully understand one without the others; consider breaking the loop "
+                "to reduce coupling.\n"
+            )
+            for cycle in cycles:
+                files = ", ".join(f"`{p}`" for p in cycle)
+                lines.append(f"- {files}")
+            lines.append("")
+
         return "\n".join(lines)
