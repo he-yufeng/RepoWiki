@@ -120,12 +120,32 @@ class DependencyGraph:
         return "\n".join(lines)
 
     def get_entry_points(self) -> list[str]:
-        """files with zero or very few incoming edges (likely entry points)."""
+        """files with few incoming edges that still import other modules.
+
+        These are likely top-level entry points: little or nothing in the
+        project depends on them, yet they pull in other code. Files with no
+        edges at all are not entry points -- see find_isolated_files().
+        """
         entries = []
         for node in self.graph.nodes:
-            if self.graph.in_degree(node) <= 1:
+            if self.graph.in_degree(node) <= 1 and self.graph.out_degree(node) > 0:
                 entries.append(node)
         return entries
+
+    def find_isolated_files(self) -> list[str]:
+        """files with no import edges in either direction -- likely dead code.
+
+        An isolated file imports nothing in the project and is imported by
+        nothing: a stray script, dead code, or a module that should be wired in
+        but never was. Distinct from an entry point, which does pull in other
+        modules. Deterministic.
+        """
+        isolated = [
+            node
+            for node in self.graph.nodes
+            if self.graph.in_degree(node) == 0 and self.graph.out_degree(node) == 0
+        ]
+        return sorted(isolated)
 
     def find_circular_dependencies(self, limit: int = 10) -> list[list[str]]:
         """groups of files that import each other in a cycle.

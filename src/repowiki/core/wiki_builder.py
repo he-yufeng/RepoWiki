@@ -238,4 +238,17 @@ class WikiBuilder:
                 lines.append(f"- {files}")
             lines.append("")
 
+        # isolated files (likely dead code worth surfacing)
+        isolated = graph.find_isolated_files()
+        if isolated:
+            lines.append("## Isolated Files\n")
+            lines.append(
+                "These files import nothing in the project and are imported by "
+                "nothing -- likely dead code, stray scripts, or modules that were "
+                "never wired in.\n"
+            )
+            for f in isolated[:15]:
+                lines.append(f"- `{f}`")
+            lines.append("")
+
         return "\n".join(lines)

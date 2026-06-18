@@ -81,3 +81,36 @@ def test_find_circular_dependencies_empty_for_acyclic_graph():
     )
 
     assert DependencyGraph.build_from_project(project).find_circular_dependencies() == []
+
+
+def test_find_isolated_files_flags_disconnected_modules():
+    project = _project(
+        {
+            "src/app/api/routes.py": ("python", "from ..services.users import get_user\n"),
+            "src/app/services/users.py": ("python", "def get_user(): ...\n"),
+            "src/app/scratch.py": ("python", "VALUE = 1\n"),
+        }
+    )
+
+    graph = DependencyGraph.build_from_project(project)
+
+    # scratch.py has no edges either way; it is the only isolated file.
+    assert graph.find_isolated_files() == ["src/app/scratch.py"]
+    # and an isolated file must not masquerade as an entry point
+    assert "src/app/scratch.py" not in graph.get_entry_points()
+
+
+def test_entry_points_require_outgoing_imports():
+    project = _project(
+        {
+            "src/app/api/routes.py": ("python", "from ..services.users import get_user\n"),
+            "src/app/services/users.py": ("python", "def get_user(): ...\n"),
+        }
+    )
+
+    entries = DependencyGraph.build_from_project(project).get_entry_points()
+
+    # routes imports users, so it is a real entry point
+    assert "src/app/api/routes.py" in entries
+    # users imports nothing in the project: a leaf utility, not an entry point
+    assert "src/app/services/users.py" not in entries
