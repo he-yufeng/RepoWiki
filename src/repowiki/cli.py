@@ -29,7 +29,9 @@ def cli():
 @click.argument("path_or_url")
 @click.option("-o", "--output", default=None, help="Output directory (default: ./wiki)")
 @click.option(
-    "-f", "--format", "fmt",
+    "-f",
+    "--format",
+    "fmt",
     type=click.Choice(["markdown", "json", "html"]),
     default="markdown",
     help="Output format",
@@ -37,8 +39,14 @@ def cli():
 @click.option("-l", "--lang", default=None, help="Output language (en/zh/ja/ko)")
 @click.option("-m", "--model", default=None, help="LLM model name or alias")
 @click.option("--open", "open_browser", is_flag=True, help="Open HTML output in browser")
-def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
-         model: str | None, open_browser: bool):
+def scan(
+    path_or_url: str,
+    output: str | None,
+    fmt: str,
+    lang: str | None,
+    model: str | None,
+    open_browser: bool,
+):
     """Scan a local directory or GitHub URL and generate wiki documentation."""
     cfg = Config.load()
     if lang:
@@ -51,6 +59,7 @@ def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
     with console.status("[bold cyan]Scanning project..."):
         if _is_url(path_or_url):
             from repowiki.ingest.github import ingest_github
+
             project = ingest_github(
                 path_or_url,
                 max_file_size=cfg.max_file_size,
@@ -58,6 +67,7 @@ def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
             )
         else:
             from repowiki.ingest.local import ingest_local
+
             project = ingest_local(
                 path_or_url,
                 max_file_size=cfg.max_file_size,
@@ -100,6 +110,7 @@ def scan(path_or_url: str, output: str | None, fmt: str, lang: str | None,
 
     # phase 2 will add LLM analysis here
     import asyncio
+
     asyncio.run(_run_analysis(project, cfg, fmt, open_browser))
 
 
@@ -116,6 +127,7 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
     analyzer = Analyzer(llm=llm, cache=cache, language=cfg.language, concurrency=cfg.concurrency)
 
     from rich.progress import Progress, SpinnerColumn, TextColumn
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -139,20 +151,24 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
     output_dir = cfg.output_dir
     if fmt == "markdown":
         from repowiki.export.markdown import export_markdown
+
         export_markdown(wiki, output_dir)
         console.print(f"\n[bold green]Wiki generated:[/] {output_dir}/")
     elif fmt == "json":
         from repowiki.export.json_export import export_json
+
         out_path = f"{output_dir}/repowiki.json"
         export_json(wiki, out_path)
         console.print(f"\n[bold green]Wiki generated:[/] {out_path}")
     elif fmt == "html":
         from repowiki.export.html import export_html
+
         out_path = f"{output_dir}/repowiki.html"
         export_html(wiki, out_path)
         console.print(f"\n[bold green]Wiki generated:[/] {out_path}")
         if open_browser:
             import webbrowser
+
             webbrowser.open(f"file://{out_path}")
 
     # show token usage
@@ -171,6 +187,7 @@ def _build_rich_tree(tree: Tree, files, max_entries: int = 30):
     dirs: dict[str, list] = {}
     for f in files[:max_entries]:
         from pathlib import Path as P
+
         parts = P(f.path).parts
         if len(parts) == 1:
             icon = "📄" if not f.is_config else "⚙️"
@@ -206,6 +223,7 @@ def serve(path_or_url: str, port: int):
     console.print(f"[bold]Open:[/] http://localhost:{port}")
 
     import uvicorn
+
     uvicorn.run(
         "repowiki.server.app:create_app",
         host="0.0.0.0",
@@ -216,12 +234,78 @@ def serve(path_or_url: str, port: int):
 
 
 @cli.command()
-@click.argument("path_or_url")
-def chat(path_or_url: str):
+@click.argument("path_or_url", default=".")
+@click.option("-m", "--model", default=None, help="LLM model name or alias")
+@click.option("-l", "--lang", default=None, help="Answer language (en/zh/ja/ko)")
+def chat(path_or_url: str, model: str | None, lang: str | None):
     """Ask questions about a codebase in the terminal."""
-    console.print("[bold cyan]RepoWiki Chat[/] (type 'exit' to quit)\n")
-    # phase 4 will implement this
-    console.print("[yellow]Chat mode coming soon. Use `repowiki scan` for now.[/]")
+    cfg = Config.load()
+    if model:
+        cfg.model = resolve_model(model)
+    if lang:
+        cfg.language = lang
+
+    if not cfg.api_key:
+        console.print(
+            "[yellow]No API key configured.[/] Chat needs an LLM.\n"
+            "Set one with: [bold]repowiki config set api_key YOUR_KEY[/]\n"
+            "Or set DEEPSEEK_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY env var."
+        )
+        return
+
+    console.print("[dim]Indexing repository...[/]")
+    if _is_url(path_or_url):
+        from repowiki.ingest.github import ingest_github
+
+        project = ingest_github(
+            path_or_url, max_file_size=cfg.max_file_size, max_files=cfg.max_files
+        )
+    else:
+        from repowiki.ingest.local import ingest_local
+
+        project = ingest_local(
+            path_or_url, max_file_size=cfg.max_file_size, max_files=cfg.max_files
+        )
+
+    from repowiki.core.rag import SimpleRAG
+
+    rag = SimpleRAG()
+    rag.index(project)
+    if not rag.chunks:
+        console.print("[yellow]No readable source found to chat about.[/]")
+        return
+
+    console.print(
+        f"[bold cyan]RepoWiki Chat[/] — {project.name} "
+        f"({len(project.files)} files). Type 'exit' to quit.\n"
+    )
+
+    import asyncio
+
+    while True:
+        try:
+            question = console.input("[bold green]?[/] ").strip()
+        except (EOFError, KeyboardInterrupt):
+            console.print()
+            break
+        if not question:
+            continue
+        if question.lower() in {"exit", "quit", ":q"}:
+            break
+        answer = asyncio.run(_answer_question(question, rag, cfg))
+        console.print(f"\n{answer}\n")
+
+
+async def _answer_question(question: str, rag, cfg: Config) -> str:
+    """Retrieve relevant code and ask the LLM a single question."""
+    from repowiki.core.rag import format_context
+    from repowiki.llm.client import LLMClient
+    from repowiki.llm.prompts import build_chat_prompt
+
+    chunks = rag.retrieve(question, top_k=5)
+    messages = build_chat_prompt(question, format_context(chunks), cfg.language)
+    llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
+    return await llm.complete(messages)
 
 
 @cli.group("config")
@@ -279,6 +363,7 @@ def config_list():
             val = val[:8] + "..." + val[-4:]
         source = "default"
         import os
+
         env_key = f"REPOWIKI_{key.upper()}"
         if os.getenv(env_key):
             source = f"env ({env_key})"

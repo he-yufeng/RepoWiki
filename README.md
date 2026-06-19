@@ -67,6 +67,9 @@ Automatically generates structured documentation for any codebase:
 ### Web Interface
 Three-column wiki viewer with sidebar navigation, Mermaid diagram rendering, and an AI-powered Q&A chat about the codebase.
 
+### Terminal Chat
+`repowiki chat .` opens an interactive Q&A in the terminal. It indexes the repo with built-in TF-IDF retrieval (no embeddings service, no extra dependencies), pulls the most relevant code for each question, and answers grounded in the actual files — citing paths and line ranges.
+
 ### CLI-First Design
 Everything works from the terminal. No Docker, no database server, no web browser required.
 
@@ -74,7 +77,7 @@ Everything works from the terminal. No Docker, no database server, no web browse
 repowiki scan .                    # generate wiki
 repowiki scan . -f html --open     # open in browser
 repowiki scan . -l zh              # Chinese output
-repowiki chat .                    # ask questions (coming soon)
+repowiki chat .                    # ask questions about the code (interactive)
 repowiki config list               # show configuration
 ```
 

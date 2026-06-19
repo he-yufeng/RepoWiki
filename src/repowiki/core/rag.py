@@ -52,10 +52,7 @@ class SimpleRAG:
             for token in set(tokens):
                 df[token] += 1
 
-        self._idf = {
-            token: math.log(doc_count / (count + 1))
-            for token, count in df.items()
-        }
+        self._idf = {token: math.log(doc_count / (count + 1)) for token, count in df.items()}
 
     def retrieve(self, query: str, top_k: int = 5) -> list[Chunk]:
         """find top-k chunks most relevant to the query."""
@@ -83,6 +80,23 @@ class SimpleRAG:
         return results
 
 
+def format_context(chunks: list[Chunk]) -> str:
+    """Render retrieved chunks into a prompt-ready context block.
+
+    Each chunk becomes a fenced section labelled with its file path and line
+    range, so the model can cite specific locations. Empty input yields a
+    short placeholder rather than a blank prompt.
+    """
+    if not chunks:
+        return "(no relevant code found in this repository)"
+    blocks = []
+    for c in chunks:
+        blocks.append(
+            f"### {c.file_path} (lines {c.line_start}-{c.line_end})\n```\n{c.content}\n```"
+        )
+    return "\n\n".join(blocks)
+
+
 def _tokenize(text: str) -> list[str]:
     """split text into lowercase tokens, keeping identifiers intact."""
     # split on non-alphanumeric, underscore preserved
@@ -90,9 +104,7 @@ def _tokenize(text: str) -> list[str]:
     return tokens
 
 
-def _cosine_similarity(
-    vec_a: Counter, vec_b: Counter, idf: dict[str, float]
-) -> float:
+def _cosine_similarity(vec_a: Counter, vec_b: Counter, idf: dict[str, float]) -> float:
     """TF-IDF weighted cosine similarity."""
     common = set(vec_a) & set(vec_b)
     if not common:
@@ -118,19 +130,21 @@ def _split_into_chunks(text: str, file_path: str, max_chunk_lines: int = 30) -> 
         current_lines.append(line)
 
         # split at blank lines or when chunk gets too large
-        is_boundary = (line.strip() == "" and len(current_lines) >= 5)
+        is_boundary = line.strip() == "" and len(current_lines) >= 5
         is_too_long = len(current_lines) >= max_chunk_lines
 
         if is_boundary or is_too_long or i == len(lines) - 1:
             if current_lines:
                 content = "\n".join(current_lines)
                 if content.strip():
-                    chunks.append(Chunk(
-                        file_path=file_path,
-                        line_start=current_start + 1,
-                        line_end=current_start + len(current_lines),
-                        content=content,
-                    ))
+                    chunks.append(
+                        Chunk(
+                            file_path=file_path,
+                            line_start=current_start + 1,
+                            line_end=current_start + len(current_lines),
+                            content=content,
+                        )
+                    )
                 current_start = i + 1
                 current_lines = []
 
