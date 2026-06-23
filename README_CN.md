@@ -1,12 +1,16 @@
-# RepoWiki
+<div align="center">
 
-**开源 DeepWiki 替代品** — 从终端或浏览器为任意代码仓库生成完整 wiki 文档。
+<img src="docs/banner.png" alt="RepoWiki — 为任意代码库生成 wiki 文档" width="100%">
 
 [![PyPI](https://img.shields.io/pypi/v/repowiki.svg)](https://pypi.org/project/repowiki/)
 [![Python](https://img.shields.io/pypi/pyversions/repowiki.svg)](https://pypi.org/project/repowiki/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[English](README.md)
+[**快速开始**](#快速开始) · [**工作原理**](#工作原理) · [English](README.md)
+
+</div>
+
+**开源 DeepWiki 替代品** — 从终端或浏览器为任意代码仓库生成完整 wiki 文档。
 
 ## 为什么选 RepoWiki？
 
@@ -101,6 +105,8 @@ Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby
 | MiniMax | M2.7 | `minimax` |
 
 ## 工作原理
+
+![RepoWiki 流程](docs/architecture.png)
 
 1. **扫描** — 遍历目录树，过滤二进制、生成式 bundle 和超大文件，检测语言和入口文件
 2. **建图** — 解析 6 种语言的 import，正确处理 Python 包内相对导入和
