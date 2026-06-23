@@ -1,12 +1,16 @@
-# RepoWiki
+<div align="center">
 
-**Open-source DeepWiki alternative** — generate comprehensive wiki documentation for any codebase from your terminal or browser.
+<img src="docs/banner.png" alt="RepoWiki — generate wiki docs for any codebase" width="100%">
 
 [![PyPI](https://img.shields.io/pypi/v/repowiki.svg)](https://pypi.org/project/repowiki/)
 [![Python](https://img.shields.io/pypi/pyversions/repowiki.svg)](https://pypi.org/project/repowiki/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[中文文档](README_CN.md)
+[**Quick Start**](#quick-start) · [**How It Works**](#how-it-works) · [**Why RepoWiki?**](#why-repowiki) · [中文](README_CN.md)
+
+</div>
+
+**Open-source DeepWiki alternative** — generate comprehensive wiki documentation for any codebase from your terminal or browser.
 
 ## Why RepoWiki?
 
@@ -148,6 +152,8 @@ RepoWiki/
 
 ## How It Works
 
+![RepoWiki pipeline](docs/architecture.png)
+
 1. **Scan** — Walk the directory tree, filter out binaries, generated bundles, and oversized files, detect languages and entry points
 2. **Graph** — Resolve imports across 6 languages, including Python package-relative and
    JavaScript/TypeScript relative modules, then run PageRank to rank file importance
@@ -178,12 +184,9 @@ repowiki serve --port 8000
 - [**LiteBench**](https://github.com/he-yufeng/LiteBench) — one-command LLM/agent benchmark. HumanEval/GSM8K/MMLU/MATH-500 built in, plus YAML-defined custom tasks and a single-file HTML dashboard.
 - [**CoreCoder**](https://github.com/he-yufeng/CoreCoder) — Claude Code's architecture distilled to ~1,400 lines of Python, with 7 deep-dive architecture articles.
 - [**AnyCoder**](https://github.com/he-yufeng/AnyCoder) — practical terminal AI coding agent, 100+ model support via litellm.
-
-## Related projects
-
-- [GitSense](https://github.com/he-yufeng/GitSense) — find open-source issues to work on and gauge how hard a repo is to contribute to
-- [RuleForge](https://github.com/he-yufeng/RuleForge) — auto-generate AI assistant rules from a codebase
-- [CodeABC](https://github.com/he-yufeng/CodeABC) — an AI code reader for non-programmers
+- [**GitSense**](https://github.com/he-yufeng/GitSense) — find open-source issues to work on and gauge how hard a repo is to contribute to.
+- [**RuleForge**](https://github.com/he-yufeng/RuleForge) — auto-generate AI assistant rules from a codebase.
+- [**CodeABC**](https://github.com/he-yufeng/CodeABC) — an AI code reader for non-programmers.
 
 ## License
 
