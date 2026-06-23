@@ -179,6 +179,12 @@ repowiki serve --port 8000
 - [**CoreCoder**](https://github.com/he-yufeng/CoreCoder) — Claude Code's architecture distilled to ~1,400 lines of Python, with 7 deep-dive architecture articles.
 - [**AnyCoder**](https://github.com/he-yufeng/AnyCoder) — practical terminal AI coding agent, 100+ model support via litellm.
 
+## Related projects
+
+- [GitSense](https://github.com/he-yufeng/GitSense) — find open-source issues to work on and gauge how hard a repo is to contribute to
+- [RuleForge](https://github.com/he-yufeng/RuleForge) — auto-generate AI assistant rules from a codebase
+- [CodeABC](https://github.com/he-yufeng/CodeABC) — an AI code reader for non-programmers
+
 ## License
 
 MIT
