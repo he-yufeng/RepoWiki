@@ -178,6 +178,15 @@ cd frontend && npm install && npm run dev
 repowiki serve --port 8000
 ```
 
+## Roadmap
+
+Generation, the web interface, and the diagrams work. The next steps are about keeping a wiki fresh and better connected:
+
+- **Incremental re-generation** — regenerate only the pages whose source changed since the last run, so updating a wiki on a large repo isn't a full rebuild every time.
+- **Cross-reference links** — link a symbol mentioned on one module page to the page where it's defined, so the wiki reads like connected docs instead of isolated pages.
+- **More diagram types** — a call graph and a data-flow view alongside the dependency graph, since the analysis already walks imports and could surface more.
+- **Publish to a static site** — a one-command export to a GitHub Pages-ready site, so a generated wiki can live as a project's docs, not just a local file.
+
 ## Related Projects
 
 - [**CodeJoust**](https://github.com/he-yufeng/CodeJoust) — once RepoWiki tells you *how* the repo works, CodeJoust helps you change it: race Claude Code, aider, Codex, and Gemini on the same bug in parallel git worktrees, auto-score by tests/cost/diff/time, merge the winner. `pip install codejoust`.
