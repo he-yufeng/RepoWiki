@@ -189,13 +189,13 @@ Generation, the web interface, and the diagrams work. The next steps are about k
 
 ## Related Projects
 
-- [**CodeJoust**](https://github.com/he-yufeng/CodeJoust) — once RepoWiki tells you *how* the repo works, CodeJoust helps you change it: race Claude Code, aider, Codex, and Gemini on the same bug in parallel git worktrees, auto-score by tests/cost/diff/time, merge the winner. `pip install codejoust`.
-- [**LiteBench**](https://github.com/he-yufeng/LiteBench) — one-command LLM/agent benchmark. HumanEval/GSM8K/MMLU/MATH-500 built in, plus YAML-defined custom tasks and a single-file HTML dashboard.
-- [**CoreCoder**](https://github.com/he-yufeng/CoreCoder) — Claude Code's architecture distilled to ~1,400 lines of Python, with 7 deep-dive architecture articles.
-- [**AnyCoder**](https://github.com/he-yufeng/AnyCoder) — practical terminal AI coding agent, 100+ model support via litellm.
-- [**GitSense**](https://github.com/he-yufeng/GitSense) — find open-source issues to work on and gauge how hard a repo is to contribute to.
-- [**RuleForge**](https://github.com/he-yufeng/RuleForge) — auto-generate AI assistant rules from a codebase.
-- [**CodeABC**](https://github.com/he-yufeng/CodeABC) — an AI code reader for non-programmers.
+If RepoWiki helped you find your way around a codebase, a few other things I've built:
+
+- [**CoreCoder**](https://github.com/he-yufeng/CoreCoder) — want to understand how a coding agent really works? Read the whole ~1k-line engine end to end, not a black box.
+- [**FindJobs-Agent**](https://github.com/he-yufeng/FindJobs-Agent) — stop sifting job boards by hand: it ranks postings against your resume and runs mock interviews.
+- [**ContractGuard**](https://github.com/he-yufeng/ContractGuard) — catch the risky clauses before you sign: it reads contracts and flags the dangerous bits.
+- [**GitSense**](https://github.com/he-yufeng/GitSense) — want to contribute to open source? It finds issues worth your time and gauges whether your PR will get merged.
+- [**CodeABC**](https://github.com/he-yufeng/CodeABC) — understand any codebase even if you don't code, built for non-programmers.
 
 ## License
 
