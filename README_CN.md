@@ -5,6 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/repowiki.svg)](https://pypi.org/project/repowiki/)
 [![Python](https://img.shields.io/pypi/pyversions/repowiki.svg)](https://pypi.org/project/repowiki/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/he-yufeng/RepoWiki/actions/workflows/ci.yml/badge.svg)](https://github.com/he-yufeng/RepoWiki/actions/workflows/ci.yml)
 
 [**快速开始**](#快速开始) · [**工作原理**](#工作原理) · [English](README.md)
 
@@ -140,16 +141,6 @@ repowiki serve --port 8000
 - **交叉引用链接**：把某个模块页里提到的符号链到它定义所在的页面，让 wiki 读起来像一份相互连通的文档，而不是一堆孤立页面。
 - **更多图表类型**：在依赖图之外再加调用图和数据流图——分析本来就走了 import，能挖出更多。
 - **发布成静态站点**：一条命令导出成可直接上 GitHub Pages 的站点，让生成的 wiki 能当项目文档用，而不只是一个本地文件。
-
-## 相关项目
-
-如果 RepoWiki 帮到了你，这几个我做的项目也许也用得上：
-
-- [**CoreCoder**](https://github.com/he-yufeng/CoreCoder) — 想真正搞懂一个 coding agent 怎么运作？读完整 ~1000 行引擎，而不是黑箱
-- [**FindJobs-Agent**](https://github.com/he-yufeng/FindJobs-Agent) — 别再手刷招聘网站，它按你的简历给岗位排序、还能跑模拟面试
-- [**ContractGuard**](https://github.com/he-yufeng/ContractGuard) — 签字前先揪出有风险的条款，自动读合同、标出危险点
-- [**GitSense**](https://github.com/he-yufeng/GitSense) — 想给开源做贡献？帮你找到值得做的 issue，还能估你的 PR 多大概率被合
-- [**CodeABC**](https://github.com/he-yufeng/CodeABC) — 不会写代码也能看懂一个项目，专给小白做的
 
 ## 相关项目
 
