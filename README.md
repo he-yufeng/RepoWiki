@@ -54,63 +54,26 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 
 ## Features
 
-### Wiki Generation
-Automatically generates structured documentation for any codebase:
-- **Project overview** — what it does, tech stack, setup instructions
-- **Module documentation** — purpose, key files, relationships, important functions
-- **Architecture diagrams** — auto-detected architecture type with Mermaid visualizations
-- **Reading guide** — "start here" path based on PageRank file importance ranking
-- **Import-aware dependency map** — resolves Python package-relative imports and
-  JavaScript/TypeScript relative modules before ranking files
-- **Bundle-aware scanner** — skips minified JS/CSS and generated frontend chunks before they burn LLM context
-
-### Multiple Output Formats
-- **Markdown** — directory of `.md` files, ready to commit to your repo
-- **JSON** — structured data for API consumption or custom rendering
-- **HTML** — self-contained single file, share with anyone (Mermaid diagrams included)
-
-### Web Interface
-Three-column wiki viewer with sidebar navigation, Mermaid diagram rendering, and an AI-powered Q&A chat about the codebase.
-
-### Terminal Chat
-`repowiki chat .` opens an interactive Q&A in the terminal. It indexes the repo with built-in TF-IDF retrieval (no embeddings service, no extra dependencies), pulls the most relevant code for each question, and answers grounded in the actual files — citing paths and line ranges.
-
-### CLI-First Design
-Everything works from the terminal. No Docker, no database server, no web browser required.
+- **Structured wiki** — project overview, per-module docs, auto-detected architecture with Mermaid diagrams, and a PageRank "start here" reading path.
+- **Import-aware ranking** — resolves Python and JS/TS imports before ranking files, and skips minified/generated bundles so they don't burn LLM context.
+- **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
+- **Web viewer + terminal chat** — a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal (built-in TF-IDF retrieval, no embeddings service).
+- **CLI-first** — no Docker, no database server, no browser required.
 
 ```bash
 repowiki scan .                    # generate wiki
 repowiki scan . -f html --open     # open in browser
 repowiki scan . -l zh              # Chinese output
-repowiki chat .                    # ask questions about the code (interactive)
-repowiki config list               # show configuration
+repowiki chat .                    # interactive Q&A about the code
 ```
 
-## Supported Languages
+## Languages & Models
 
-Python, JavaScript, TypeScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, Swift, Dart, Vue, Svelte, and 30+ more.
-
-## Supported LLM Providers
-
-Powered by [litellm](https://github.com/BerriAI/litellm), RepoWiki works with 100+ LLM providers:
-
-| Provider | Model | Alias |
-|----------|-------|-------|
-| Anthropic | Claude Opus 4.6 | `opus` |
-| Anthropic | Claude Sonnet 4.6 | `claude` |
-| OpenAI | GPT-5.4 | `gpt` |
-| OpenAI | GPT-5.4 Mini | `gpt-mini` |
-| Google | Gemini 3.1 Pro | `gemini` |
-| Google | Gemini 2.5 Flash | `gemini-flash` |
-| DeepSeek | DeepSeek V3.2 | `deepseek` |
-| Alibaba | Qwen3.5 Plus | `qwen` |
-| Moonshot | Kimi K2.6 | `kimi` |
-| Zhipu | GLM-5 | `glm` |
-| MiniMax | M2.7 | `minimax` |
+Detects Python, JavaScript, TypeScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, Swift, and 30+ more. Any of litellm's 100+ providers works — pick one with an alias or pass it directly:
 
 ```bash
-repowiki config set model deepseek    # use alias
-repowiki scan . -m gpt                # or pass directly
+repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen / kimi / glm ...
+repowiki scan . -m gpt               # or pass a model directly
 ```
 
 ## Configuration

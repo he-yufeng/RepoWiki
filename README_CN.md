@@ -54,56 +54,27 @@ repowiki serve
 
 ## 核心功能
 
-### Wiki 生成
-自动为任意代码仓库生成结构化文档：
-- **项目概览** — 做什么、技术栈、如何运行
-- **模块文档** — 用途、关键文件、模块间关系、重要函数
-- **架构图** — 自动识别架构模式，Mermaid 可视化
-- **阅读指南** — 基于 PageRank 文件重要性排名的"从这里开始读"路径
-- **更准确的依赖图** — 解析 Python 包内相对导入和 JavaScript / TypeScript 相对模块，
-  再计算文件重要性，减少阅读顺序被漏边带偏
-- **Bundle 感知扫描** — 先跳过 minified JS/CSS 和生成式前端 chunk，避免浪费 LLM 上下文
-
-### 多格式导出
-- **Markdown** — `.md` 文件目录，可以直接放进仓库当文档用
-- **JSON** — 结构化数据，方便 API 消费或自定义渲染
-- **HTML** — 自包含单文件，分享给任何人都能直接打开（内含 Mermaid 图表）
-
-### Web 界面
-三栏布局 wiki 查看器：侧边导航 + 内容区 + Mermaid 图表，还有 AI 问答聊天功能。
-
-### CLI 优先
-所有功能都能在终端完成。不需要 Docker，不需要数据库，不需要浏览器。
+- **结构化 wiki** — 项目概览、逐模块文档、自动识别的架构（含 Mermaid 图），以及基于 PageRank 的"从这里开始读"路径。
+- **import 感知排名** — 先解析 Python 和 JS/TS 的 import 再排名，并跳过 minified/生成式 bundle，避免浪费 LLM 上下文。
+- **三种导出格式** — 可直接提交的 Markdown 目录、结构化 JSON，或自包含、随手能分享的 HTML 单文件（含图表）。
+- **Web 查看器 + 终端问答** — 三栏浏览器界面，或 `repowiki chat .` 在终端里做基于源码的问答（内置 TF-IDF 检索，无需 embedding 服务）。
+- **CLI 优先** — 不需要 Docker、数据库或浏览器。
 
 ```bash
 repowiki scan .                    # 生成 wiki
 repowiki scan . -f html --open     # 浏览器打开
 repowiki scan . -l zh              # 中文输出
-repowiki chat .                    # 终端问答（即将推出）
-repowiki config list               # 查看配置
+repowiki chat .                    # 终端里就代码问答
 ```
 
-## 支持的语言
+## 语言与模型
 
-Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby、PHP、Swift、Dart、Vue、Svelte 等 30+ 种编程语言。
+识别 Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby、PHP、Swift 等 30+ 种语言。litellm 的 100+ 提供商都能用，用别名选一个，或直接传模型名：
 
-## 支持的 LLM 提供商
-
-基于 [litellm](https://github.com/BerriAI/litellm)，支持 100+ LLM 提供商：
-
-| 提供商 | 模型 | 别名 |
-|--------|------|------|
-| Anthropic | Claude Opus 4.6 | `opus` |
-| Anthropic | Claude Sonnet 4.6 | `claude` |
-| OpenAI | GPT-5.4 | `gpt` |
-| OpenAI | GPT-5.4 Mini | `gpt-mini` |
-| Google | Gemini 3.1 Pro | `gemini` |
-| Google | Gemini 2.5 Flash | `gemini-flash` |
-| DeepSeek | DeepSeek V3.2 | `deepseek` |
-| 阿里云 | Qwen3.5 Plus | `qwen` |
-| 月之暗面 | Kimi K2.6 | `kimi` |
-| 智谱 | GLM-5 | `glm` |
-| MiniMax | M2.7 | `minimax` |
+```bash
+repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen / kimi / glm ...
+repowiki scan . -m gpt               # 或直接传模型名
+```
 
 ## 工作原理
 
