@@ -76,6 +76,44 @@ repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen /
 repowiki scan . -m gpt               # 或直接传模型名
 ```
 
+## 配置
+
+RepoWiki 按以下顺序查找配置：
+1. 命令行参数（`-m`、`-l`、`-o`）
+2. 环境变量（`REPOWIKI_MODEL`、`REPOWIKI_API_KEY`）
+3. 配置文件（`~/.repowiki/config.json`）
+4. 各提供商专用环境变量（`DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`）
+
+## 项目结构
+
+```
+RepoWiki/
+├── src/repowiki/
+│   ├── cli.py              # Click CLI，含 scan/serve/chat/config 命令
+│   ├── config.py           # 配置管理
+│   ├── core/
+│   │   ├── scanner.py      # 文件扫描 + 语言识别
+│   │   ├── analyzer.py     # 多步 LLM 分析流水线
+│   │   ├── graph.py        # 依赖图 + PageRank
+│   │   ├── wiki_builder.py # Wiki 页面组装
+│   │   ├── rag.py          # 面向问答的 TF-IDF 检索
+│   │   └── cache.py        # SQLite 缓存
+│   ├── llm/
+│   │   ├── client.py       # litellm 异步封装
+│   │   └── prompts.py      # 结构化 prompt 模板
+│   ├── ingest/
+│   │   ├── local.py        # 本地目录导入
+│   │   └── github.py       # 带缓存的 git clone
+│   ├── export/
+│   │   ├── markdown.py     # Markdown 目录导出
+│   │   ├── json_export.py  # JSON 导出
+│   │   └── html.py         # 自包含 HTML 导出
+│   └── server/             # FastAPI web 后端
+├── frontend/               # React + Vite + TailwindCSS
+├── pyproject.toml
+└── LICENSE
+```
+
 ## 工作原理
 
 ![RepoWiki 流程](docs/architecture.png)
