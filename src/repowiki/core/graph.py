@@ -79,9 +79,9 @@ class DependencyGraph:
         if not self.graph.nodes:
             return []
         try:
-            scores = nx.pagerank(self.graph, alpha=0.85)
+            scores = _pagerank_power_iteration(self.graph, alpha=0.85)
         except Exception:
-            # fallback: uniform scores if PageRank fails (missing numpy, convergence, etc.)
+            # fallback: uniform scores if PageRank fails (convergence, etc.)
             scores = {n: 1.0 / len(self.graph) for n in self.graph}
         return sorted(scores.items(), key=lambda x: -x[1])
 
@@ -160,6 +160,42 @@ class DependencyGraph:
         ]
         cycles.sort(key=lambda c: (-len(c), c[0]))
         return cycles[:limit]
+
+
+def _pagerank_power_iteration(
+    graph: nx.DiGraph,
+    alpha: float = 0.85,
+    max_iter: int = 100,
+    tol: float = 1.0e-6,
+) -> dict[str, float]:
+    """PageRank via plain power iteration.
+
+    networkx 3.6 moved its own implementation onto scipy, which RepoWiki does
+    not depend on -- and pulling in scipy for one algorithm is a bad trade for
+    a CLI install. This is the textbook iterative version, deterministic.
+    """
+    nodes = list(graph.nodes)
+    n = len(nodes)
+    if n == 0:
+        return {}
+    out_degree = {node: graph.out_degree(node) for node in nodes}
+    scores = {node: 1.0 / n for node in nodes}
+    for _ in range(max_iter):
+        # dangling nodes (no out-edges) redistribute their share uniformly
+        dangling = sum(scores[node] for node in nodes if out_degree[node] == 0)
+        new_scores = {}
+        for node in nodes:
+            incoming = sum(
+                scores[pred] / out_degree[pred]
+                for pred in graph.predecessors(node)
+                if out_degree[pred] > 0
+            )
+            new_scores[node] = (1 - alpha) / n + alpha * (incoming + dangling / n)
+        if sum(abs(new_scores[node] - scores[node]) for node in nodes) < tol:
+            scores = new_scores
+            break
+        scores = new_scores
+    return scores
 
 
 def _get_module(path: str) -> str:

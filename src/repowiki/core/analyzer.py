@@ -7,6 +7,7 @@ import logging
 from collections.abc import Callable
 
 from repowiki.core.cache import Cache, content_hash
+from repowiki.core.graph import DependencyGraph
 from repowiki.core.models import (
     ArchitectureDiagram,
     FileInfo,
@@ -244,29 +245,44 @@ class Analyzer:
         module_docs: list[ModuleDoc],
         tree_hash: str,
     ) -> ReadingGuide:
-        cache_key = f"guide:{tree_hash}"
-        cached = await self.cache.get(cache_key)
-        if cached:
-            try:
-                return ReadingGuide(**cached)
-            except Exception:
-                pass
+        # PageRank over the import graph decides which files matter; scan order
+        # only fills the tail when the graph is smaller than the display limit.
+        ranked = DependencyGraph.build_from_project(project).rank_files()
+        by_path = {f.path: f for f in project.files}
+        ranked_paths = [path for path, _ in ranked[:20]]
+        seen = set(ranked_paths)
+        for f in project.files:
+            if len(ranked_paths) >= 20:
+                break
+            if f.path not in seen:
+                ranked_paths.append(f.path)
+                seen.add(f.path)
 
-        # build rankings placeholder (will be replaced by PageRank in Phase 3)
         rankings_parts = []
-        for i, f in enumerate(project.files[:20], 1):
+        for i, path in enumerate(ranked_paths, 1):
+            f = by_path[path]
             tag = ""
             if f.is_entrypoint:
                 tag = " [entrypoint]"
             elif f.is_config:
                 tag = " [config]"
-            rankings_parts.append(f"{i}. {f.path}{tag} ({f.lines} lines)")
+            rankings_parts.append(f"{i}. {path}{tag} ({f.lines} lines)")
         rankings = "\n".join(rankings_parts)
 
         module_parts = []
         for m in module_docs:
             module_parts.append(f"- **{m.name}**: {m.purpose}")
         module_summaries = "\n".join(module_parts)
+
+        # key on the actual prompt inputs so an import-only edit that reshuffles
+        # the ranking also invalidates the cached guide
+        cache_key = f"guide:{tree_hash}:{content_hash(rankings + module_summaries)}"
+        cached = await self.cache.get(cache_key)
+        if cached:
+            try:
+                return ReadingGuide(**cached)
+            except Exception:
+                pass
 
         messages = build_reading_guide_prompt(rankings, module_summaries, self.language)
         raw = await self.llm.complete(messages, max_tokens=4096)

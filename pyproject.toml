@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "repowiki"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source DeepWiki alternative - generate comprehensive wiki documentation for any codebase"
 readme = "README.md"
 license = "MIT"
