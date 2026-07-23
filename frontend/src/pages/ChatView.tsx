@@ -6,7 +6,7 @@ import { useWikiStore } from "../stores/wiki";
 export default function ChatView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { chatMessages, addChatMessage, appendToLastChat } = useWikiStore();
+  const { chatMessages, addChatMessage, appendToLastChat, setLastChatReferences } = useWikiStore();
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -27,6 +27,7 @@ export default function ChatView() {
       id,
       question,
       (data) => {
+        if (data.references) setLastChatReferences(data.references);
         if (data.content) appendToLastChat(data.content);
       },
       () => setStreaming(false),
@@ -67,6 +68,19 @@ export default function ChatView() {
               }`}
             >
               <pre className="whitespace-pre-wrap font-sans text-sm">{msg.content}</pre>
+              {msg.references && msg.references.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Sources</p>
+                  {msg.references.map((ref, j) => (
+                    <details key={j} className="group rounded border border-slate-200 bg-slate-50">
+                      <summary className="cursor-pointer select-none px-3 py-1.5 text-xs font-mono text-blue-700 hover:bg-slate-100 rounded">
+                        {ref.path}:{ref.line_start}-{ref.line_end}
+                      </summary>
+                      <pre className="px-3 py-2 text-xs font-mono text-slate-600 whitespace-pre-wrap border-t border-slate-200">{ref.snippet}</pre>
+                    </details>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
