@@ -233,6 +233,24 @@ def serve(path_or_url: str, port: int):
     )
 
 
+@cli.command(name="cache-clear")
+def cache_clear():
+    """Wipe cached LLM analysis results (use after a prompt or model change)."""
+    import asyncio
+
+    from repowiki.core.cache import Cache
+
+    async def _clear() -> int:
+        cache = Cache()
+        await cache.init()
+        count = await cache.clear()
+        await cache.close()
+        return count
+
+    count = asyncio.run(_clear())
+    console.print(f"Cleared {count} cached analysis entr{'y' if count == 1 else 'ies'}.")
+
+
 @cli.command()
 @click.argument("path_or_url", default=".")
 @click.option("-m", "--model", default=None, help="LLM model name or alias")

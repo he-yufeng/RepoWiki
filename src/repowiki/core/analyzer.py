@@ -158,11 +158,20 @@ class Analyzer:
             tasks.append(self._analyze_one_module(name, files, project_summary, project))
 
         results = []
+        reused = 0
+        regenerated = 0
         for i, coro in enumerate(asyncio.as_completed(tasks)):
-            doc = await coro
+            doc, was_cached = await coro
             if doc:
                 results.append(doc)
+                if was_cached:
+                    reused += 1
+                else:
+                    regenerated += 1
             progress(f"Analyzed module {i + 1}/{len(tasks)}")
+
+        if reused:
+            progress(f"Module analysis: {reused} reused from cache, {regenerated} regenerated")
 
         # sort by number of files (largest first)
         results.sort(key=lambda m: -len(m.files))
@@ -174,7 +183,7 @@ class Analyzer:
         files: list[FileInfo],
         project_summary: str,
         project: ProjectContext,
-    ) -> ModuleDoc | None:
+    ) -> tuple[ModuleDoc | None, bool]:
         async with self._sem:
             # build context for this module
             files_text_parts = []
@@ -192,7 +201,7 @@ class Analyzer:
             cached = await self.cache.get(cache_key)
             if cached:
                 try:
-                    return ModuleDoc(**cached)
+                    return ModuleDoc(**cached), True
                 except Exception:
                     pass
 
@@ -201,7 +210,7 @@ class Analyzer:
             data = extract_json(raw)
             if not data or not isinstance(data, dict):
                 logger.warning("Failed to parse module '%s' JSON", name)
-                return ModuleDoc(name=name, purpose=f"Module containing {len(files)} files")
+                return ModuleDoc(name=name, purpose=f"Module containing {len(files)} files"), False
 
             # ensure name is present (LLM sometimes omits it)
             data.setdefault("name", name)
@@ -211,7 +220,7 @@ class Analyzer:
             except Exception:
                 doc = ModuleDoc(name=name, purpose=data.get("purpose", ""))
             await self.cache.put(cache_key, doc.model_dump())
-            return doc
+            return doc, False
 
     async def _generate_architecture(
         self, project: ProjectContext, key_files: str, tree_hash: str

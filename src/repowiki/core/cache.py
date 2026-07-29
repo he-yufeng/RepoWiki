@@ -11,7 +11,12 @@ import aiosqlite
 
 _CACHE_DIR = Path.home() / ".repowiki"
 _CACHE_DB = _CACHE_DIR / "cache.db"
-_DEFAULT_TTL = 7 * 24 * 3600  # 7 days
+_DEFAULT_TTL = 365 * 24 * 3600  # 1 year
+
+# Cache keys embed a content hash, so an entry is only wrong when the prompts
+# or the model change, not when time passes. A year-long TTL therefore keeps
+# re-runs of an unchanged repo free of LLM calls, and `repowiki cache-clear`
+# is the explicit way to invalidate after a prompt/model change.
 
 
 def content_hash(content: str) -> str:
@@ -89,6 +94,16 @@ class Cache:
             return json.loads(row[0])
         except json.JSONDecodeError:
             return None
+
+    async def clear(self) -> int:
+        """Wipe cached LLM results (not saved projects). Returns rows removed."""
+        if not self._db:
+            return 0
+        cursor = await self._db.execute("SELECT COUNT(*) FROM cache")
+        (count,) = await cursor.fetchone()
+        await self._db.execute("DELETE FROM cache")
+        await self._db.commit()
+        return count
 
     async def close(self):
         if self._db:
