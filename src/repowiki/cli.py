@@ -25,6 +25,79 @@ def cli():
     pass
 
 
+@cli.command(name="map")
+@click.argument("path")
+@click.option("-n", "--top", default=50, show_default=True, help="Max entries to show")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+)
+def repo_map(path: str, top: int, fmt: str):
+    """Print the repo map: files ranked by real dependency PageRank.
+
+    Zero LLM calls, so it is fast and free. Built for agents: --json
+    gives a prompt-ready ranked file list with language and line counts.
+    """
+    import json
+
+    from repowiki.core.graph import DependencyGraph
+    from repowiki.core.models import ProjectContext
+    from repowiki.core.scanner import scan_directory
+
+    if _is_url(path):
+        raise click.UsageError("map works on local directories only, not URLs")
+    if top <= 0:
+        raise click.UsageError("--top must be greater than zero")
+
+    with console.status("[bold cyan]Mapping repository..."):
+        files = scan_directory(path)
+        project = ProjectContext(name=path, root=path, files=files)
+        ranked = DependencyGraph.build_from_project(project).rank_files()
+
+    entries = [
+        {
+            "rank": i + 1,
+            "path": p,
+            "score": round(score, 6),
+            "language": next((f.language for f in files if f.path == p), "unknown"),
+            "lines": next((f.lines for f in files if f.path == p), 0),
+        }
+        for i, (p, score) in enumerate(ranked[:top])
+    ]
+
+    if fmt == "json":
+        console.print_json(
+            json.dumps({"root": path, "file_count": len(files), "entries": entries})
+        )
+        return
+
+    table = Table(title=f"Repo map: {path} ({len(files)} files)")
+    table.add_column("#", justify="right", style="dim", width=5)
+    table.add_column("Score", justify="right", width=8)
+    table.add_column("Path")
+    table.add_column("Lang", style="cyan", width=10)
+    table.add_column("Lines", justify="right", width=7)
+    peak = entries[0]["score"] if entries else 1.0
+    for e in entries:
+        rel = e["score"] / peak if peak else 0.0
+        table.add_row(
+            str(e["rank"]),
+            f"{rel:.3f}",
+            e["path"],
+            e["language"],
+            str(e["lines"]),
+        )
+    console.print(table)
+    console.print(
+        "[dim]Scores are PageRank over the real import graph, normalized to the "
+        "top file. Feed `repowiki map --format json` to an agent for a "
+        "prompt-ready reading order.[/dim]"
+    )
+
+
 @cli.command()
 @click.argument("path_or_url")
 @click.option("-o", "--output", default=None, help="Output directory (default: ./wiki)")

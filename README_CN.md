@@ -65,6 +65,8 @@ repowiki scan .                    # 生成 wiki
 repowiki scan . -f html --open     # 浏览器打开
 repowiki scan . -l zh              # 中文输出
 repowiki chat .                    # 终端里就代码问答
+repowiki map .                     # 按真实依赖排序的仓库地图，零 LLM 调用
+repowiki map . --format json       # 给 agent 用的可入 prompt 排序清单
 ```
 
 ## 语言与模型

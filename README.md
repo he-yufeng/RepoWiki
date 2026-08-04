@@ -65,6 +65,8 @@ repowiki scan .                    # generate wiki
 repowiki scan . -f html --open     # open in browser
 repowiki scan . -l zh              # Chinese output
 repowiki chat .                    # interactive Q&A about the code
+repowiki map .                     # ranked repo map, zero LLM calls
+repowiki map . --format json       # prompt-ready ranked list for agents
 ```
 
 ## Languages & Models
