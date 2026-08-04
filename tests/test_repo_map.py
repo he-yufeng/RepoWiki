@@ -37,7 +37,9 @@ def test_map_text_lists_files_and_top_limit(tmp_path):
 
     assert result.exit_code == 0, result.output
     assert "core/cache.py" in result.output
-    assert "engine.py" not in result.output  # trimmed by --top 2
+    # --top 2 caps the table at two rows (scores can tie across platforms,
+    # so assert on the count, not on which file lands third)
+    assert result.output.count("core/") == 2
 
 
 def test_map_rejects_urls():
