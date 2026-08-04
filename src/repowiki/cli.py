@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import click
 from rich.console import Console
 from rich.table import Table
@@ -60,7 +62,9 @@ def repo_map(path: str, top: int, fmt: str):
     entries = [
         {
             "rank": i + 1,
-            "path": p,
+            # scan paths are platform-native; the map is for agents and prompts,
+            # so publish them in the canonical forward-slash form
+            "path": p.replace(os.sep, "/"),
             "score": round(score, 6),
             "language": next((f.language for f in files if f.path == p), "unknown"),
             "lines": next((f.lines for f in files if f.path == p), 0),
