@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+import os
 from contextlib import asynccontextmanager
 
+from repowiki import __version__
 from repowiki.core.cache import Cache
 
 # in-memory project store (keyed by project ID)
@@ -36,13 +39,34 @@ def create_app():
         global _cache
         _cache = Cache()
         await _cache.init()
+
+        # `repowiki serve <path|url>` preloads that project instead of
+        # starting the UI empty.
+        serve_target = os.environ.pop("REPOWIKI_SERVE_TARGET", None)
+        if serve_target:
+            import uuid
+
+            from repowiki.server.models import ScanRequest
+            from repowiki.server.routers.scan import _run_scan
+
+            project_id = str(uuid.uuid4())[:8]
+            from repowiki.server.models import ProjectInfo
+
+            info = ProjectInfo(id=project_id, name="", status="pending")
+            _projects[project_id] = {"info": info, "wiki": None, "project": None, "progress": []}
+            if "://" in serve_target:
+                req = ScanRequest(url=serve_target)
+            else:
+                req = ScanRequest(path=serve_target)
+            asyncio.create_task(_run_scan(project_id, req, None))
+
         yield
         await _cache.close()
 
     app = FastAPI(
         title="RepoWiki",
         description="Generate wiki documentation for any codebase",
-        version="0.1.0",
+        version=__version__,
         lifespan=lifespan,
     )
 
@@ -61,7 +85,7 @@ def create_app():
 
     @app.get("/api/health")
     async def health():
-        return {"status": "ok", "version": "0.1.0"}
+        return {"status": "ok", "version": __version__}
 
     # serve embedded frontend (if built)
     from pathlib import Path

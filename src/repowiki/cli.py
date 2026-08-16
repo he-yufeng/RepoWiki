@@ -116,6 +116,11 @@ def repo_map(path: str, top: int, fmt: str):
 @click.option("-l", "--lang", default=None, help="Output language (en/zh/ja/ko)")
 @click.option("-m", "--model", default=None, help="LLM model name or alias")
 @click.option("--open", "open_browser", is_flag=True, help="Open HTML output in browser")
+@click.option(
+    "--site",
+    is_flag=True,
+    help="Also write a GitHub Pages-ready loader (index.html + .nojekyll) on markdown export",
+)
 def scan(
     path_or_url: str,
     output: str | None,
@@ -123,6 +128,7 @@ def scan(
     lang: str | None,
     model: str | None,
     open_browser: bool,
+    site: bool,
 ):
     """Scan a local directory or GitHub URL and generate wiki documentation."""
     cfg = Config.load()
@@ -188,10 +194,10 @@ def scan(
     # phase 2 will add LLM analysis here
     import asyncio
 
-    asyncio.run(_run_analysis(project, cfg, fmt, open_browser))
+    asyncio.run(_run_analysis(project, cfg, fmt, open_browser, site))
 
 
-async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
+async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool, site: bool = False):
     """run the full LLM analysis pipeline."""
     from repowiki.core.analyzer import Analyzer
     from repowiki.core.cache import Cache
@@ -230,6 +236,11 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool):
         from repowiki.export.markdown import export_markdown
 
         export_markdown(wiki, output_dir)
+        if site:
+            from repowiki.export.site import write_site_loader
+
+            write_site_loader(output_dir, wiki.project_name)
+            console.print("[dim]GitHub Pages loader written (index.html + .nojekyll)[/]")
         console.print(f"\n[bold green]Wiki generated:[/] {output_dir}/")
     elif fmt == "json":
         from repowiki.export.json_export import export_json
@@ -299,7 +310,14 @@ def serve(path_or_url: str, port: int):
     console.print(f"[bold cyan]Starting RepoWiki server on port {port}...[/]")
     console.print(f"[bold]Open:[/] http://localhost:{port}")
 
+    import os
+
     import uvicorn
+
+    if path_or_url != ".":
+        # The app factory picks this up and preloads the project instead of
+        # starting empty — `repowiki serve some/path` used to silently drop it.
+        os.environ["REPOWIKI_SERVE_TARGET"] = path_or_url
 
     uvicorn.run(
         "repowiki.server.app:create_app",
