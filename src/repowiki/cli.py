@@ -117,6 +117,11 @@ def repo_map(path: str, top: int, fmt: str):
 @click.option("-m", "--model", default=None, help="LLM model name or alias")
 @click.option("--open", "open_browser", is_flag=True, help="Open HTML output in browser")
 @click.option(
+    "--full",
+    is_flag=True,
+    help="Ignore incremental state and regenerate every page",
+)
+@click.option(
     "--site",
     is_flag=True,
     help="Also write a GitHub Pages-ready loader (index.html + .nojekyll) on markdown export",
@@ -128,6 +133,7 @@ def scan(
     lang: str | None,
     model: str | None,
     open_browser: bool,
+    full: bool,
     site: bool,
 ):
     """Scan a local directory or GitHub URL and generate wiki documentation."""
@@ -194,10 +200,12 @@ def scan(
     # phase 2 will add LLM analysis here
     import asyncio
 
-    asyncio.run(_run_analysis(project, cfg, fmt, open_browser, site))
+    asyncio.run(_run_analysis(project, cfg, fmt, open_browser, site, full))
 
 
-async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool, site: bool = False):
+async def _run_analysis(
+    project, cfg: Config, fmt: str, open_browser: bool, site: bool = False, full: bool = False
+):
     """run the full LLM analysis pipeline."""
     from repowiki.core.analyzer import Analyzer
     from repowiki.core.cache import Cache
@@ -235,7 +243,19 @@ async def _run_analysis(project, cfg: Config, fmt: str, open_browser: bool, site
     if fmt == "markdown":
         from repowiki.export.markdown import export_markdown
 
-        export_markdown(wiki, output_dir)
+        summary = export_markdown(
+            wiki,
+            output_dir,
+            page_inputs=dict(analyzer.cache_keys),
+            model=cfg.model,
+            language=cfg.language,
+            full=full,
+        )
+        if summary and (summary["kept"] or summary["removed"]):
+            console.print(
+                f"[dim]Incremental: {len(summary['written'])} pages written, "
+                f"{len(summary['kept'])} unchanged, {len(summary['removed'])} removed[/]"
+            )
         if site:
             from repowiki.export.site import write_site_loader
 

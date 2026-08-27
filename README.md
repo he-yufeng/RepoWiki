@@ -55,6 +55,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 ## Features
 
 - **Structured wiki** — project overview, per-module docs, auto-detected architecture with Mermaid diagrams, and a PageRank "start here" reading path.
+- **Incremental re-runs**: the output directory keeps a `.repowiki-state.json` mapping each page to the inputs that generated it, so re-scanning only regenerates pages whose source changed and deletes pages of removed modules. Pass `--full` to force a full rebuild.
 - **Import-aware ranking** — resolves Python and JS/TS imports before ranking files, and skips minified/generated bundles so they don't burn LLM context.
 - **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
 - **Web viewer + terminal chat** — a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal (built-in TF-IDF retrieval, no embeddings service).
@@ -62,6 +63,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 
 ```bash
 repowiki scan .                    # generate wiki
+repowiki scan . --full             # rebuild every page, ignoring incremental state
 repowiki scan . -f html --open     # open in browser
 repowiki scan . -l zh              # Chinese output
 repowiki chat .                    # interactive Q&A about the code
@@ -99,7 +101,8 @@ RepoWiki/
 │   │   ├── graph.py        # Dependency graph + PageRank
 │   │   ├── wiki_builder.py # Wiki page assembly
 │   │   ├── rag.py          # TF-IDF retrieval for Q&A
-│   │   └── cache.py        # SQLite caching
+│   │   ├── cache.py        # SQLite caching
+│   │   └── state.py        # Incremental regeneration state
 │   ├── llm/
 │   │   ├── client.py       # litellm async wrapper
 │   │   └── prompts.py      # Structured prompt templates
@@ -146,9 +149,8 @@ repowiki serve --port 8000
 
 ## Roadmap
 
-Generation, the web interface, and the diagrams work. The next steps are about keeping a wiki fresh and better connected:
+Generation, the web interface, and the diagrams work, and re-runs only regenerate the pages whose source changed. The next steps are about making the wiki better connected and easier to publish:
 
-- **Incremental re-generation** — regenerate only the pages whose source changed since the last run, so updating a wiki on a large repo isn't a full rebuild every time.
 - **Cross-reference links** — link a symbol mentioned on one module page to the page where it's defined, so the wiki reads like connected docs instead of isolated pages.
 - **More diagram types** — a call graph and a data-flow view alongside the dependency graph, since the analysis already walks imports and could surface more.
 - **Publish to a static site** — a one-command export to a GitHub Pages-ready site, so a generated wiki can live as a project's docs, not just a local file.

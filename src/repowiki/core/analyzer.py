@@ -43,6 +43,12 @@ class Analyzer:
         self.cache = cache
         self.language = language
         self._sem = asyncio.Semaphore(concurrency)
+        # cache keys embed model + language so switching either one misses the
+        # cache instead of serving stale output
+        self._key_prefix = f"{getattr(llm, 'model', '')}:{language}"
+        # page id -> cache key used this run; the incremental export compares
+        # these against the state file to decide which pages to rewrite
+        self.cache_keys: dict[str, str] = {}
 
     async def analyze(
         self,
@@ -50,6 +56,7 @@ class Analyzer:
         on_progress: Callable[[str], None] | None = None,
     ) -> WikiData:
         """run the full analysis pipeline and return WikiData."""
+        self.cache_keys = {}
 
         def progress(msg: str):
             if on_progress:
@@ -104,7 +111,8 @@ class Analyzer:
     async def _generate_overview(
         self, project: ProjectContext, key_files: str, tree_hash: str
     ) -> ProjectOverview:
-        cache_key = f"overview:{tree_hash}"
+        cache_key = f"{self._key_prefix}:overview:{tree_hash}"
+        self.cache_keys["index"] = cache_key
         cached = await self.cache.get(cache_key)
         if cached:
             try:
@@ -173,8 +181,10 @@ class Analyzer:
         if reused:
             progress(f"Module analysis: {reused} reused from cache, {regenerated} regenerated")
 
-        # sort by number of files (largest first)
-        results.sort(key=lambda m: -len(m.files))
+        # sort by number of files (largest first); name tiebreak keeps the
+        # order deterministic, otherwise the reading guide's cache key
+        # flickers with as_completed timing
+        results.sort(key=lambda m: (-len(m.files), m.name))
         return results
 
     async def _analyze_one_module(
@@ -196,7 +206,8 @@ class Analyzer:
                 content_parts.append(content)
 
             files_context = "\n\n".join(files_text_parts)
-            cache_key = f"module:{name}:{content_hash(''.join(content_parts))}"
+            cache_key = f"{self._key_prefix}:module:{name}:{content_hash(''.join(content_parts))}"
+            self.cache_keys[f"modules/{name}"] = cache_key
 
             cached = await self.cache.get(cache_key)
             if cached:
@@ -225,7 +236,8 @@ class Analyzer:
     async def _generate_architecture(
         self, project: ProjectContext, key_files: str, tree_hash: str
     ) -> ArchitectureDiagram:
-        cache_key = f"arch:{tree_hash}"
+        cache_key = f"{self._key_prefix}:arch:{tree_hash}"
+        self.cache_keys["architecture"] = cache_key
         cached = await self.cache.get(cache_key)
         if cached:
             try:
@@ -285,7 +297,8 @@ class Analyzer:
 
         # key on the actual prompt inputs so an import-only edit that reshuffles
         # the ranking also invalidates the cached guide
-        cache_key = f"guide:{tree_hash}:{content_hash(rankings + module_summaries)}"
+        cache_key = f"{self._key_prefix}:guide:{tree_hash}:{content_hash(rankings + module_summaries)}"
+        self.cache_keys["reading-guide"] = cache_key
         cached = await self.cache.get(cache_key)
         if cached:
             try:

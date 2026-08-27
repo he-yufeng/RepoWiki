@@ -13,10 +13,10 @@ _CACHE_DIR = Path.home() / ".repowiki"
 _CACHE_DB = _CACHE_DIR / "cache.db"
 _DEFAULT_TTL = 365 * 24 * 3600  # 1 year
 
-# Cache keys embed a content hash, so an entry is only wrong when the prompts
-# or the model change, not when time passes. A year-long TTL therefore keeps
-# re-runs of an unchanged repo free of LLM calls, and `repowiki cache-clear`
-# is the explicit way to invalidate after a prompt/model change.
+# Cache keys embed a content hash plus the model and language, so an entry is
+# only wrong when the prompts change. A year-long TTL therefore keeps re-runs
+# of an unchanged repo free of LLM calls, and `repowiki cache-clear` is the
+# explicit way to invalidate after a prompt change.
 
 
 def content_hash(content: str) -> str:
