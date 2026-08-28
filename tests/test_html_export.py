@@ -56,3 +56,19 @@ def test_html_export_keeps_ordered_and_unordered_lists_separate(tmp_path):
     assert "<ul>" in text and "<ol>" in text
     # the bullet list closes before the ordered list opens
     assert text.index("</ul>") < text.index("<ol>")
+
+
+def test_html_export_skips_the_write_when_content_is_unchanged(tmp_path):
+    out = tmp_path / "wiki.html"
+    wiki = _wiki("# Overview\n\nSame content.")
+    assert export_html(wiki, out) is True
+    first = out.read_text(encoding="utf-8")
+    mtime = out.stat().st_mtime_ns
+
+    assert export_html(wiki, out) is False
+    assert out.read_text(encoding="utf-8") == first
+    assert out.stat().st_mtime_ns == mtime
+
+    changed = _wiki("# Overview\n\nNew content.")
+    assert export_html(changed, out) is True
+    assert "New content." in out.read_text(encoding="utf-8")

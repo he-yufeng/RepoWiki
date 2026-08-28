@@ -259,3 +259,32 @@ def test_model_change_invalidates_llm_pages(tmp_path):
         "overview",
     ]
     assert _read_state(out)["model"] == "other-model"
+
+
+def test_json_export_skips_the_write_when_content_is_unchanged(tmp_path):
+    import json as _json
+
+    from repowiki.core.wiki_builder import SidebarItem, Wiki, WikiPage
+    from repowiki.export.json_export import export_json
+
+    wiki = Wiki(
+        project_name="DemoProj",
+        pages=[WikiPage(id="index", title="Overview", content="# A\n")],
+        sidebar=[SidebarItem(title="Overview", page_id="index")],
+    )
+    out = tmp_path / "repowiki.json"
+    assert export_json(wiki, out) is True
+    first = _json.loads(out.read_text(encoding="utf-8"))
+    mtime = out.stat().st_mtime_ns
+
+    assert export_json(wiki, out) is False
+    assert _json.loads(out.read_text(encoding="utf-8")) == first
+    assert out.stat().st_mtime_ns == mtime
+
+    changed = Wiki(
+        project_name="DemoProj",
+        pages=[WikiPage(id="index", title="Overview", content="# B\n")],
+        sidebar=[SidebarItem(title="Overview", page_id="index")],
+    )
+    assert export_json(changed, out) is True
+    assert _json.loads(out.read_text(encoding="utf-8"))["pages"][0]["content"] == "# B\n"

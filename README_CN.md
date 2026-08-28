@@ -55,7 +55,7 @@ repowiki serve
 ## 核心功能
 
 - **结构化 wiki** — 项目概览、逐模块文档、自动识别的架构（含 Mermaid 图），以及基于 PageRank 的"从这里开始读"路径。
-- **增量重跑**：输出目录里的 `.repowiki-state.json` 记录每个页面由哪些输入生成，再次扫描只重新生成源码有变化的页面，并清理被删模块对应的页面。加 `--full` 可强制全量重建。
+- **增量重跑**：输出目录里的 `.repowiki-state.json` 记录每个页面由哪些输入生成，再次扫描只重新生成源码有变化的页面，并清理被删模块对应的页面；JSON 和 HTML 导出在内容没有变化时直接不写盘。加 `--full` 可强制全量重建。
 - **import 感知排名** — 先解析 Python 和 JS/TS 的 import 再排名，并跳过 minified/生成式 bundle，避免浪费 LLM 上下文。
 - **三种导出格式** — 可直接提交的 Markdown 目录、结构化 JSON，或自包含、随手能分享的 HTML 单文件（含图表）。
 - **Web 查看器 + 终端问答** — 三栏浏览器界面，或 `repowiki chat .` 在终端里做基于源码的问答（内置 TF-IDF 检索，无需 embedding 服务）。

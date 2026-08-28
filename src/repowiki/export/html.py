@@ -8,8 +8,12 @@ from pathlib import Path
 from repowiki.core.wiki_builder import Wiki
 
 
-def export_html(wiki: Wiki, output_path: str | Path) -> None:
-    """generate a single self-contained HTML file with sidebar navigation."""
+def export_html(wiki: Wiki, output_path: str | Path) -> bool:
+    """generate a single self-contained HTML file with sidebar navigation.
+
+    Returns False when the existing file already holds the same content and is
+    left untouched, matching the incremental JSON export.
+    """
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -45,7 +49,10 @@ def export_html(wiki: Wiki, output_path: str | Path) -> None:
         first_page=wiki.pages[0].id if wiki.pages else "index",
     )
 
+    if out.exists() and out.read_text(encoding="utf-8") == template:
+        return False
     out.write_text(template, encoding="utf-8")
+    return True
 
 
 def _markdown_to_html(md: str) -> str:

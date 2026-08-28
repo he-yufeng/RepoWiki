@@ -266,14 +266,18 @@ async def _run_analysis(
         from repowiki.export.json_export import export_json
 
         out_path = f"{output_dir}/repowiki.json"
-        export_json(wiki, out_path)
+        written = export_json(wiki, out_path)
         console.print(f"\n[bold green]Wiki generated:[/] {out_path}")
+        if not written:
+            console.print("[dim]Incremental: content unchanged, file left as is[/]")
     elif fmt == "html":
         from repowiki.export.html import export_html
 
         out_path = f"{output_dir}/repowiki.html"
-        export_html(wiki, out_path)
+        written = export_html(wiki, out_path)
         console.print(f"\n[bold green]Wiki generated:[/] {out_path}")
+        if not written:
+            console.print("[dim]Incremental: content unchanged, file left as is[/]")
         if open_browser:
             import webbrowser
 

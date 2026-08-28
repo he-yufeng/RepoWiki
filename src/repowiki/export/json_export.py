@@ -8,8 +8,13 @@ from pathlib import Path
 from repowiki.core.wiki_builder import Wiki
 
 
-def export_json(wiki: Wiki, output_path: str | Path) -> None:
-    """write the full wiki structure as a JSON file."""
+def export_json(wiki: Wiki, output_path: str | Path) -> bool:
+    """write the full wiki structure as a JSON file.
+
+    Returns False when the existing file already holds the same content and is
+    left untouched, so repeat exports don't churn the file (or anything
+    watching its mtime).
+    """
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -28,7 +33,11 @@ def export_json(wiki: Wiki, output_path: str | Path) -> None:
         "sidebar": _serialize_sidebar(wiki.sidebar),
     }
 
-    out.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    if out.exists() and out.read_text(encoding="utf-8") == text:
+        return False
+    out.write_text(text, encoding="utf-8")
+    return True
 
 
 def _serialize_sidebar(items) -> list[dict]:

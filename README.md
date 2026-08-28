@@ -55,7 +55,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 ## Features
 
 - **Structured wiki** — project overview, per-module docs, auto-detected architecture with Mermaid diagrams, and a PageRank "start here" reading path.
-- **Incremental re-runs**: the output directory keeps a `.repowiki-state.json` mapping each page to the inputs that generated it, so re-scanning only regenerates pages whose source changed and deletes pages of removed modules. Pass `--full` to force a full rebuild.
+- **Incremental re-runs**: the output directory keeps a `.repowiki-state.json` mapping each page to the inputs that generated it, so re-scanning only regenerates pages whose source changed and deletes pages of removed modules. JSON and HTML exports skip the write entirely when nothing changed. Pass `--full` to force a full rebuild.
 - **Import-aware ranking** — resolves Python and JS/TS imports before ranking files, and skips minified/generated bundles so they don't burn LLM context.
 - **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
 - **Web viewer + terminal chat** — a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal (built-in TF-IDF retrieval, no embeddings service).
