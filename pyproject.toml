@@ -32,7 +32,9 @@ classifiers = [
 dependencies = [
     "click>=8.0",
     "rich>=13.0",
-    "litellm>=1.40.0",
+    "litellm>=1.40.0; python_version >= '3.11'",
+    # litellm 1.98.0 broke 3.10 with an unguarded typing.NotRequired import, cap until upstream fixes it
+    "litellm>=1.40.0,<1.98.0; python_version < '3.11'",
     "pydantic>=2.0",
     "aiosqlite>=0.20.0",
     "python-dotenv>=1.0",

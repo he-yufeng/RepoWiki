@@ -96,7 +96,7 @@ def _run_pipeline(project, out_dir, cache_path, llm, *, full=False, model="stub-
 
 def _snapshot(out_dir):
     return {
-        str(p.relative_to(out_dir)): p.read_bytes()
+        p.relative_to(out_dir).as_posix(): p.read_bytes()
         for p in sorted(out_dir.rglob("*"))
         if p.is_file()
     }
@@ -104,7 +104,7 @@ def _snapshot(out_dir):
 
 def _mtimes(out_dir):
     return {
-        str(p.relative_to(out_dir)): p.stat().st_mtime_ns
+        p.relative_to(out_dir).as_posix(): p.stat().st_mtime_ns
         for p in sorted(out_dir.rglob("*"))
         if p.is_file()
     }
