@@ -42,6 +42,9 @@ repowiki scan ./my-project
 # scan a GitHub repo
 repowiki scan https://github.com/pallets/flask
 
+# scan a private GitHub repo (token never touches logs or errors)
+GITHUB_TOKEN=ghp_xxx repowiki scan https://github.com/acme/private-repo
+
 # generate self-contained HTML
 repowiki scan ./my-project --format html --open
 
@@ -87,6 +90,8 @@ RepoWiki looks for config in this order:
 2. Environment variables (`REPOWIKI_MODEL`, `REPOWIKI_API_KEY`)
 3. Config file (`~/.repowiki/config.json`)
 4. Provider-specific env vars (`DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
+
+For private GitHub repositories, set `GITHUB_TOKEN` (or `GH_TOKEN`): the clone goes out authenticated and the token is used only inside the git invocation, never written to logs or error output.
 
 ## Project Structure
 

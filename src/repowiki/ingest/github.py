@@ -47,6 +47,26 @@ def _clone_url(url: str) -> str:
     return f"https://{host}/{owner}/{repo}.git"
 
 
+def _resolve_token() -> str | None:
+    """Credentials for private repos, from the environment only."""
+    import os
+
+    return os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+
+
+def _authenticated_clone_url(url: str) -> tuple[str, str | None]:
+    """(clone_url, token_used). The token applies to github.com only; the
+    display URL used everywhere else never carries it."""
+    clone_url = _clone_url(url)
+    token = _resolve_token()
+    if not token:
+        return clone_url, None
+    parsed = parse_git_url(url)
+    if parsed and parsed[0] == "github.com":
+        return f"https://x-access-token:{token}@github.com/{parsed[1]}/{parsed[2]}.git", token
+    return clone_url, None
+
+
 def ingest_github(
     url: str,
     max_file_size: int = 200 * 1024,
@@ -69,8 +89,11 @@ def ingest_github(
             return ingest_local(dest, max_file_size=max_file_size, max_files=max_files)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    clone_url = _clone_url(url)
-    logger.info("Cloning %s -> %s", clone_url, dest)
+    clone_url, token = _authenticated_clone_url(url)
+    # The credential only ever travels inside the git argv; logs and raised
+    # errors always use the bare URL.
+    display_url = _clone_url(url)
+    logger.info("Cloning %s -> %s", display_url, dest)
 
     try:
         subprocess.run(
@@ -84,11 +107,14 @@ def ingest_github(
         # clean up partial clone
         if dest.exists():
             shutil.rmtree(dest)
-        raise RuntimeError(f"Clone timed out after {_CLONE_TIMEOUT}s: {clone_url}")
+        raise RuntimeError(f"Clone timed out after {_CLONE_TIMEOUT}s: {display_url}")
     except subprocess.CalledProcessError as e:
         if dest.exists():
             shutil.rmtree(dest)
-        raise RuntimeError(f"Clone failed: {e.stderr.strip()}")
+        stderr = e.stderr.strip()
+        if token:
+            stderr = stderr.replace(token, "***")
+        raise RuntimeError(f"Clone failed: {stderr}")
 
     # check repo size
     total_mb = sum(f.stat().st_size for f in dest.rglob("*") if f.is_file()) / (1024 * 1024)

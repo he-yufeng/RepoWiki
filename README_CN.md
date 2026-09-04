@@ -42,6 +42,9 @@ repowiki scan ./my-project
 # 扫描 GitHub 仓库
 repowiki scan https://github.com/pallets/flask
 
+# 扫描私有 GitHub 仓库（token 不会落进日志或报错）
+GITHUB_TOKEN=ghp_xxx repowiki scan https://github.com/acme/private-repo
+
 # 生成自包含 HTML 并打开
 repowiki scan ./my-project --format html --open
 
@@ -87,6 +90,8 @@ RepoWiki 按以下顺序查找配置：
 2. 环境变量（`REPOWIKI_MODEL`、`REPOWIKI_API_KEY`）
 3. 配置文件（`~/.repowiki/config.json`）
 4. 各提供商专用环境变量（`DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`）
+
+私有 GitHub 仓库用 `GITHUB_TOKEN`（或 `GH_TOKEN`）：clone 走认证连接，token 只出现在 git 调用内部，不落日志、不进报错。
 
 ## 项目结构
 
