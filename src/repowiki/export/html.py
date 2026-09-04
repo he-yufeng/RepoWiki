@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import posixpath
 from pathlib import Path
 
 from repowiki.core.wiki_builder import Wiki
@@ -19,6 +20,7 @@ def export_html(wiki: Wiki, output_path: str | Path) -> bool:
 
     pages_html = []
     nav_html = []
+    page_ids = {p.id for p in wiki.pages}
 
     for item in wiki.sidebar:
         if item.page_id:
@@ -36,7 +38,7 @@ def export_html(wiki: Wiki, output_path: str | Path) -> bool:
 
     for page in wiki.pages:
         # basic markdown to HTML (just the essentials, mermaid handled by JS)
-        content = _markdown_to_html(page.content)
+        content = _markdown_to_html(page.content, page.id, page_ids)
         pages_html.append(
             f'<div id="page-{page.id}" class="wiki-page" style="display:none">'
             f'{content}</div>'
@@ -55,7 +57,7 @@ def export_html(wiki: Wiki, output_path: str | Path) -> bool:
     return True
 
 
-def _markdown_to_html(md: str) -> str:
+def _markdown_to_html(md: str, page_id: str = "", page_ids: set[str] | None = None) -> str:
     """minimal markdown to HTML conversion (no dependencies)."""
     import re
     lines = md.split("\n")
@@ -99,7 +101,7 @@ def _markdown_to_html(md: str) -> str:
                 close_list()
                 result.append("<ul>")
                 list_type = "ul"
-            result.append(f"<li>{_inline_md(line[2:])}</li>")
+            result.append(f"<li>{_inline_md(line[2:], page_id, page_ids)}</li>")
             continue
         if re.match(r"^\d+\. ", line):
             if list_type != "ol":
@@ -107,7 +109,7 @@ def _markdown_to_html(md: str) -> str:
                 result.append("<ol>")
                 list_type = "ol"
             text = re.sub(r"^\d+\. ", "", line)
-            result.append(f"<li>{_inline_md(text)}</li>")
+            result.append(f"<li>{_inline_md(text, page_id, page_ids)}</li>")
             continue
 
         # any other line ends an open list
@@ -115,30 +117,40 @@ def _markdown_to_html(md: str) -> str:
 
         # headings
         if line.startswith("# "):
-            result.append(f"<h1>{_inline_md(line[2:])}</h1>")
+            result.append(f"<h1>{_inline_md(line[2:], page_id, page_ids)}</h1>")
         elif line.startswith("## "):
-            result.append(f"<h2>{_inline_md(line[3:])}</h2>")
+            result.append(f"<h2>{_inline_md(line[3:], page_id, page_ids)}</h2>")
         elif line.startswith("### "):
-            result.append(f"<h3>{_inline_md(line[4:])}</h3>")
+            result.append(f"<h3>{_inline_md(line[4:], page_id, page_ids)}</h3>")
         elif line.startswith("> "):
-            result.append(f"<blockquote>{_inline_md(line[2:])}</blockquote>")
+            result.append(f"<blockquote>{_inline_md(line[2:], page_id, page_ids)}</blockquote>")
         elif line.strip() == "":
             result.append("<br>")
         else:
-            result.append(f"<p>{_inline_md(line)}</p>")
+            result.append(f"<p>{_inline_md(line, page_id, page_ids)}</p>")
 
     close_list()
     return "\n".join(result)
 
 
-def _inline_md(text: str) -> str:
+def _inline_md(text: str, page_id: str = "", page_ids: set[str] | None = None) -> str:
     """handle inline markdown: bold, code, links."""
     import re
     text = html.escape(text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
     text = re.sub(r"`(.+?)`", r"<code>\1</code>", text)
-    text = re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2">\1</a>', text)
-    return text
+
+    def link(m: re.Match) -> str:
+        label, target = m.group(1), m.group(2)
+        # in-page link to another wiki page: route through showPage like the nav
+        if page_ids and target.endswith(".md"):
+            resolved = posixpath.normpath(posixpath.join(posixpath.dirname(page_id), target))
+            resolved = resolved.removesuffix(".md")
+            if resolved in page_ids:
+                return f'<a href="#" onclick="showPage(\'{resolved}\')">{label}</a>'
+        return f'<a href="{target}">{label}</a>'
+
+    return re.sub(r"\[(.+?)\]\((.+?)\)", link, text)
 
 
 _HTML_TEMPLATE = """<!DOCTYPE html>

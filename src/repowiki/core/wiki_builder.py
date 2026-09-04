@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import posixpath
+import re
 from dataclasses import dataclass, field
 
 from repowiki.core.graph import DependencyGraph
@@ -89,7 +91,24 @@ class WikiBuilder:
             pages.append(WikiPage(id="dependencies", title="Dependencies", content=dep_md, order=11))
             sidebar.append(SidebarItem(title="Dependencies", page_id="dependencies"))
 
+        self._link_pages(pages, wiki_data)
         return Wiki(pages=pages, sidebar=sidebar, project_name=project.name)
+
+    def _link_pages(self, pages: list[WikiPage], wiki_data: WikiData) -> None:
+        # index exact symbol names and file paths to the module page owning them;
+        # when several pages claim the same name the first one wins
+        symbols: dict[str, str] = {}
+        files: dict[str, str] = {}
+        for mod in wiki_data.modules:
+            page_id = f"modules/{mod.name}"
+            for f in mod.files:
+                files.setdefault(f.path, page_id)
+                for s in f.key_symbols:
+                    symbols.setdefault(s.name, page_id)
+        if not symbols and not files:
+            return
+        for page in pages:
+            page.content = _apply_cross_links(page.content, page.id, symbols, files)
 
     def _build_overview_page(self, overview, project) -> str:
         lines = [f"# {overview.name or project.name}\n"]
@@ -252,3 +271,50 @@ class WikiBuilder:
             lines.append("")
 
         return "\n".join(lines)
+
+
+# single-backtick spans, but not when they are already the text of a markdown link
+_CODE_SPAN = re.compile(r"(?<!\[)`([^`\n]+)`(?!\]\()")
+
+
+def _apply_cross_links(
+    content: str,
+    page_id: str,
+    symbols: dict[str, str],
+    files: dict[str, str],
+) -> str:
+    out: list[str] = []
+    in_fence = False
+    for line in content.split("\n"):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+        if in_fence:
+            out.append(line)
+            continue
+        out.append(_linkify_line(line, page_id, symbols, files))
+    return "\n".join(out)
+
+
+def _linkify_line(
+    line: str,
+    page_id: str,
+    symbols: dict[str, str],
+    files: dict[str, str],
+) -> str:
+    def sub(m: re.Match) -> str:
+        name = m.group(1)
+        target = files.get(name) or symbols.get(name)
+        # a page never links to itself
+        if target is None or target == page_id:
+            return m.group(0)
+        return f"[`{name}`]({_rel_href(page_id, target)})"
+
+    return _CODE_SPAN.sub(sub, line)
+
+
+def _rel_href(from_page_id: str, to_page_id: str) -> str:
+    base = posixpath.dirname(from_page_id)
+    target = f"{to_page_id}.md"
+    return target if not base else posixpath.relpath(target, base)

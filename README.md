@@ -58,6 +58,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 ## Features
 
 - **Structured wiki** — project overview, per-module docs, auto-detected architecture with Mermaid diagrams, and a PageRank "start here" reading path.
+- **Cross-linked pages**: a backticked symbol or file path that matches another wiki page becomes a link to it, as a relative `.md` link in Markdown and as in-page navigation in the HTML export. Fenced code blocks stay untouched, and a name defined on several pages links to the first one.
 - **Incremental re-runs**: the output directory keeps a `.repowiki-state.json` mapping each page to the inputs that generated it, so re-scanning only regenerates pages whose source changed and deletes pages of removed modules. JSON and HTML exports skip the write entirely when nothing changed. Pass `--full` to force a full rebuild.
 - **Import-aware ranking** — resolves Python and JS/TS imports before ranking files, and skips minified/generated bundles so they don't burn LLM context.
 - **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
@@ -154,9 +155,8 @@ repowiki serve --port 8000
 
 ## Roadmap
 
-Generation, the web interface, and the diagrams work, and re-runs only regenerate the pages whose source changed. The next steps are about making the wiki better connected and easier to publish:
+Generation, the web interface, and the diagrams work, pages link to each other, and re-runs only regenerate the pages whose source changed. The next steps are about richer diagrams and easier publishing:
 
-- **Cross-reference links** — link a symbol mentioned on one module page to the page where it's defined, so the wiki reads like connected docs instead of isolated pages.
 - **More diagram types** — a call graph and a data-flow view alongside the dependency graph, since the analysis already walks imports and could surface more.
 - **Publish to a static site** — a one-command export to a GitHub Pages-ready site, so a generated wiki can live as a project's docs, not just a local file.
 
