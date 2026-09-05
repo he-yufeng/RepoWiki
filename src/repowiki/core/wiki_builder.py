@@ -91,6 +91,12 @@ class WikiBuilder:
             pages.append(WikiPage(id="dependencies", title="Dependencies", content=dep_md, order=11))
             sidebar.append(SidebarItem(title="Dependencies", page_id="dependencies"))
 
+        # 6. symbol index
+        symbols_md = self._build_symbol_index_page(wiki_data)
+        if symbols_md:
+            pages.append(WikiPage(id="symbols", title="Symbol Index", content=symbols_md, order=12))
+            sidebar.append(SidebarItem(title="Symbol Index", page_id="symbols"))
+
         self._link_pages(pages, wiki_data)
         return Wiki(pages=pages, sidebar=sidebar, project_name=project.name)
 
@@ -200,6 +206,37 @@ class WikiBuilder:
                 lines.append(f"- `{r.source}` → `{r.target}`: {r.description}")
             lines.append("")
 
+        return "\n".join(lines)
+
+    def _build_symbol_index_page(self, wiki_data: WikiData) -> str:
+        # group every key symbol by kind, then by the module owning it; kind
+        # sections follow first appearance, modules and symbols sort by name.
+        # a project with no documented symbols gets no page at all
+        kinds: dict[str, dict[str, dict[str, str]]] = {}
+        total = 0
+        for mod in wiki_data.modules:
+            for f in mod.files:
+                for s in f.key_symbols:
+                    bucket = kinds.setdefault(s.kind or "other", {}).setdefault(mod.name, {})
+                    if s.name not in bucket:
+                        bucket[s.name] = s.description
+                        total += 1
+        if not kinds:
+            return ""
+
+        module_count = len({name for sections in kinds.values() for name in sections})
+        lines = ["# Symbol Index\n"]
+        lines.append(f"{total} symbols across {module_count} modules.\n")
+        for kind, modules in kinds.items():
+            lines.append(f"## {kind.capitalize()}\n")
+            for mod_name in sorted(modules):
+                href = _rel_href("symbols", f"modules/{mod_name}")
+                lines.append(f"### [{mod_name}]({href})\n")
+                for sym_name in sorted(modules[mod_name]):
+                    desc = modules[mod_name][sym_name]
+                    suffix = f" - {desc}" if desc else ""
+                    lines.append(f"- [`{sym_name}`]({href}){suffix}")
+                lines.append("")
         return "\n".join(lines)
 
     def _build_reading_guide_page(self, guide) -> str:

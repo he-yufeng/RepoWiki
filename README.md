@@ -59,6 +59,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 
 - **Structured wiki** — project overview, per-module docs, auto-detected architecture with Mermaid diagrams, and a PageRank "start here" reading path.
 - **Cross-linked pages**: a backticked symbol or file path that matches another wiki page becomes a link to it, as a relative `.md` link in Markdown and as in-page navigation in the HTML export. Fenced code blocks stay untouched, and a name defined on several pages links to the first one.
+- **Symbol index**: a global index page collects every key symbol the analysis documents, grouped by kind and then by module, with each entry linking back to the module page that owns it. A project with no documented symbols skips the page.
 - **Incremental re-runs**: the output directory keeps a `.repowiki-state.json` mapping each page to the inputs that generated it, so re-scanning only regenerates pages whose source changed and deletes pages of removed modules. JSON and HTML exports skip the write entirely when nothing changed. Pass `--full` to force a full rebuild.
 - **Import-aware ranking** — resolves Python and JS/TS imports before ranking files, and skips minified/generated bundles so they don't burn LLM context.
 - **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
