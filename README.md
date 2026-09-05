@@ -48,9 +48,9 @@ GITHUB_TOKEN=ghp_xxx repowiki scan https://github.com/acme/private-repo
 # generate self-contained HTML
 repowiki scan ./my-project --format html --open
 
-# start the web interface
+# start the web interface (wheels from PyPI ship the built UI)
 pip install repowiki[web]
-repowiki serve
+repowiki serve ./my-project   # optionally preload a project
 ```
 
 RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips common local secret files such as `.env`, `.env.local`, `.npmrc`, `.pypirc`, and SSH private keys by default.
@@ -63,6 +63,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 - **Incremental re-runs**: the output directory keeps a `.repowiki-state.json` mapping each page to the inputs that generated it, so re-scanning only regenerates pages whose source changed and deletes pages of removed modules. JSON and HTML exports skip the write entirely when nothing changed. Pass `--full` to force a full rebuild.
 - **Import-aware ranking** — resolves Python and JS/TS imports before ranking files, and skips minified/generated bundles so they don't burn LLM context.
 - **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
+- **Static site publishing**: `repowiki scan . --site` drops a docsify loader (`index.html` + `.nojekyll`) into the Markdown export, so the output directory can go straight onto GitHub Pages.
 - **Web viewer + terminal chat** — a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal (built-in TF-IDF retrieval, no embeddings service).
 - **CLI-first** — no Docker, no database server, no browser required.
 
@@ -74,6 +75,7 @@ repowiki scan . -l zh              # Chinese output
 repowiki chat .                    # interactive Q&A about the code
 repowiki map .                     # ranked repo map, zero LLM calls
 repowiki map . --format json       # prompt-ready ranked list for agents
+repowiki scan . --site             # markdown export plus a GitHub Pages-ready loader
 ```
 
 ## Languages & Models
@@ -156,10 +158,9 @@ repowiki serve --port 8000
 
 ## Roadmap
 
-Generation, the web interface, and the diagrams work, pages link to each other, and re-runs only regenerate the pages whose source changed. The next steps are about richer diagrams and easier publishing:
+Generation, the web interface, and the diagrams work, pages link to each other, re-runs only regenerate the pages whose source changed, and `scan --site` exports a GitHub Pages-ready site. The next step is richer diagrams:
 
 - **More diagram types** — a call graph and a data-flow view alongside the dependency graph, since the analysis already walks imports and could surface more.
-- **Publish to a static site** — a one-command export to a GitHub Pages-ready site, so a generated wiki can live as a project's docs, not just a local file.
 
 ## Related Projects
 

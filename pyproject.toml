@@ -52,6 +52,7 @@ dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.4",
+    "httpx>=0.27",  # TestClient for the server tests
 ]
 
 [project.scripts]
@@ -69,6 +70,11 @@ target-version = "py310"
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 ignore = ["E501"]  # line length handled per-file; prompts and HTML templates naturally long
+
+[tool.hatch.build]
+# vite emits into src/repowiki/server/static, which .gitignore hides from the
+# default file selection; un-ignore it so the web UI ships in the wheel
+artifacts = ["src/repowiki/server/static/**"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/repowiki"]

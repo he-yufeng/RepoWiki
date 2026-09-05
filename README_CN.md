@@ -48,9 +48,9 @@ GITHUB_TOKEN=ghp_xxx repowiki scan https://github.com/acme/private-repo
 # 生成自包含 HTML 并打开
 repowiki scan ./my-project --format html --open
 
-# 启动 Web 界面
+# 启动 Web 界面（PyPI 安装包自带构建好的前端）
 pip install repowiki[web]
-repowiki serve
+repowiki serve ./my-project   # 可选：启动时直接加载一个项目
 ```
 
 扫描时会遵守 `.gitignore` 和 `.repowikiignore`，并默认跳过 `.env`、`.env.local`、`.npmrc`、`.pypirc`、SSH 私钥等本地敏感文件，避免把不该进入文档上下文的内容喂给后续分析。
@@ -63,6 +63,7 @@ repowiki serve
 - **增量重跑**：输出目录里的 `.repowiki-state.json` 记录每个页面由哪些输入生成，再次扫描只重新生成源码有变化的页面，并清理被删模块对应的页面；JSON 和 HTML 导出在内容没有变化时直接不写盘。加 `--full` 可强制全量重建。
 - **import 感知排名** — 先解析 Python 和 JS/TS 的 import 再排名，并跳过 minified/生成式 bundle，避免浪费 LLM 上下文。
 - **三种导出格式** — 可直接提交的 Markdown 目录、结构化 JSON，或自包含、随手能分享的 HTML 单文件（含图表）。
+- **静态站点发布**：`repowiki scan . --site` 会在 Markdown 导出目录里生成 docsify 加载页（`index.html` 和 `.nojekyll`），把目录推到 GitHub Pages 上就是一个能直接浏览的文档站。
 - **Web 查看器 + 终端问答** — 三栏浏览器界面，或 `repowiki chat .` 在终端里做基于源码的问答（内置 TF-IDF 检索，无需 embedding 服务）。
 - **CLI 优先** — 不需要 Docker、数据库或浏览器。
 
@@ -74,6 +75,7 @@ repowiki scan . -l zh              # 中文输出
 repowiki chat .                    # 终端里就代码问答
 repowiki map .                     # 按真实依赖排序的仓库地图，零 LLM 调用
 repowiki map . --format json       # 给 agent 用的可入 prompt 排序清单
+repowiki scan . --site             # 在 Markdown 导出基础上生成 GitHub Pages 加载页
 ```
 
 ## 语言与模型
@@ -156,10 +158,9 @@ repowiki serve --port 8000
 
 ## 后续规划
 
-生成、Web 界面、图表这几块已经能用，页面之间也会互相链接，重跑只会重新生成源码有变化的页面。接下来想加更多图表、让发布更顺手：
+生成、Web 界面、图表这几块已经能用，页面之间互相链接，重跑只重新生成源码有变化的页面，`scan --site` 还能一键导出可直接部署 GitHub Pages 的静态站点。接下来主要是更丰富的图表：
 
 - **更多图表类型**：在依赖图之外再加调用图和数据流图——分析本来就走了 import，能挖出更多。
-- **发布成静态站点**：一条命令导出成可直接上 GitHub Pages 的站点，让生成的 wiki 能当项目文档用，而不只是一个本地文件。
 
 ## 相关项目
 

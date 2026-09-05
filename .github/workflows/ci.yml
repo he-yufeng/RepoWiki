@@ -24,7 +24,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,web]"
 
       - name: Lint with ruff
         run: ruff check .
@@ -52,3 +52,39 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+
+  wheel:
+    # the published wheel must contain the built frontend, otherwise
+    # `repowiki serve` has no UI to show (regressed once at 0.4.0)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build wheel
+        run: |
+          pip install build
+          python -m build --wheel
+
+      - name: Check the wheel ships the web UI
+        run: |
+          pip install --no-deps --target /tmp/rw-wheel-check dist/*.whl
+          test -f /tmp/rw-wheel-check/repowiki/server/static/index.html

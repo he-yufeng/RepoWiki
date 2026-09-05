@@ -38,5 +38,17 @@ jobs:
       - name: Build package
         run: python -m build
 
+      - name: Verify the wheel ships the web UI
+        run: |
+          pip install --no-deps --target /tmp/rw-wheel-check dist/*.whl
+          test -f /tmp/rw-wheel-check/repowiki/server/static/index.html
+          python - <<'PY'
+          import glob, zipfile
+          from collections import Counter
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          dupes = [n for n, c in Counter(names).items() if c > 1]
+          assert not dupes, f"duplicate wheel entries: {dupes[:5]}"
+          PY
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
