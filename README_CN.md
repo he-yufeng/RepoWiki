@@ -64,7 +64,7 @@ repowiki serve ./my-project   # 可选：启动时直接加载一个项目
 - **import 感知排名** — 先解析 Python 和 JS/TS 的 import 再排名，并跳过 minified/生成式 bundle，避免浪费 LLM 上下文。
 - **三种导出格式** — 可直接提交的 Markdown 目录、结构化 JSON，或自包含、随手能分享的 HTML 单文件（含图表）。
 - **静态站点发布**：`repowiki scan . --site` 会在 Markdown 导出目录里生成 docsify 加载页（`index.html` 和 `.nojekyll`），把目录推到 GitHub Pages 上就是一个能直接浏览的文档站。
-- **Web 查看器 + 终端问答** — 三栏浏览器界面，或 `repowiki chat .` 在终端里做基于源码的问答（内置 TF-IDF 检索，无需 embedding 服务）。
+- **Web 查看器 + 终端问答**：三栏浏览器界面，或 `repowiki chat .` 在终端里做基于源码的问答。问答支持多轮对话：之前的问答会带进每次请求，Web 界面和 CLI 里都能追问。内置 TF-IDF 检索（无需 embedding 服务），索引会落盘缓存，对没动过的仓库第二次启动直接热启动，不用重建。
 - **CLI 优先** — 不需要 Docker、数据库或浏览器。
 
 ```bash
@@ -72,7 +72,7 @@ repowiki scan .                    # 生成 wiki
 repowiki scan . --full             # 忽略增量状态，全量重建每个页面
 repowiki scan . -f html --open     # 浏览器打开
 repowiki scan . -l zh              # 中文输出
-repowiki chat .                    # 终端里就代码问答
+repowiki chat .                    # 多轮追问的代码问答，本次会话有记忆
 repowiki map .                     # 按真实依赖排序的仓库地图，零 LLM 调用
 repowiki map . --format json       # 给 agent 用的可入 prompt 排序清单
 repowiki scan . --site             # 在 Markdown 导出基础上生成 GitHub Pages 加载页

@@ -97,16 +97,22 @@ export async function getFileContent(projectId: string, filePath: string) {
   return res.json();
 }
 
+export interface ChatTurn {
+  role: string;
+  content: string;
+}
+
 export function streamChat(
   projectId: string,
   question: string,
+  history: ChatTurn[],
   onChunk: (data: any) => void,
   onDone: () => void,
 ) {
   fetch(`${BASE}/project/${projectId}/chat`, {
     method: "POST",
     headers: getHeaders(),
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   }).then(async (res) => {
     const reader = res.body?.getReader();
     const decoder = new TextDecoder();

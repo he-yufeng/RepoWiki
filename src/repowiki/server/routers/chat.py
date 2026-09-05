@@ -24,11 +24,12 @@ async def chat(project_id: str, req: ChatRequest, x_api_key: str | None = Header
 
     project = proj["project"]
 
-    # build RAG index if not cached
+    # build RAG index if not cached (in memory first, then the on-disk cache
+    # so a restarted server on an unchanged repo skips the rebuild)
     if "rag" not in proj:
-        from repowiki.core.rag import SimpleRAG
-        rag = SimpleRAG()
-        rag.index(project)
+        from repowiki.core.rag import load_or_build_index
+
+        rag, _ = load_or_build_index(project)
         proj["rag"] = rag
     else:
         rag = proj["rag"]
@@ -63,7 +64,8 @@ async def chat(project_id: str, req: ChatRequest, x_api_key: str | None = Header
     from repowiki.llm.prompts import build_chat_prompt
 
     llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
-    messages = build_chat_prompt(req.question, context_text, cfg.language)
+    history = [{"role": t.role, "content": t.content} for t in req.history]
+    messages = build_chat_prompt(req.question, context_text, cfg.language, history=history)
 
     async def event_stream():
         # send references first

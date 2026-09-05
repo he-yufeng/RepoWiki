@@ -404,21 +404,23 @@ def chat(path_or_url: str, model: str | None, lang: str | None):
             path_or_url, max_file_size=cfg.max_file_size, max_files=cfg.max_files
         )
 
-    from repowiki.core.rag import SimpleRAG
+    from repowiki.core.rag import load_or_build_index
 
-    rag = SimpleRAG()
-    rag.index(project)
+    rag, index_cached = load_or_build_index(project)
+    if index_cached:
+        console.print(f"[dim]Index unchanged, loaded from cache ({len(rag.chunks)} chunks).[/]")
     if not rag.chunks:
         console.print("[yellow]No readable source found to chat about.[/]")
         return
 
     console.print(
-        f"[bold cyan]RepoWiki Chat[/] — {project.name} "
-        f"({len(project.files)} files). Type 'exit' to quit.\n"
+        f"[bold cyan]RepoWiki Chat:[/] {project.name} "
+        f"({len(project.files)} files). Remembers this session. Type 'exit' to quit.\n"
     )
 
     import asyncio
 
+    history: list[dict] = []
     while True:
         try:
             question = console.input("[bold green]?[/] ").strip()
@@ -429,18 +431,24 @@ def chat(path_or_url: str, model: str | None, lang: str | None):
             continue
         if question.lower() in {"exit", "quit", ":q"}:
             break
-        answer = asyncio.run(_answer_question(question, rag, cfg))
+        answer = asyncio.run(_answer_question(question, rag, cfg, history))
+        history.append({"role": "user", "content": question})
+        history.append({"role": "assistant", "content": answer})
         console.print(f"\n{answer}\n")
 
 
-async def _answer_question(question: str, rag, cfg: Config) -> str:
+async def _answer_question(
+    question: str, rag, cfg: Config, history: list[dict] | None = None
+) -> str:
     """Retrieve relevant code and ask the LLM a single question."""
     from repowiki.core.rag import format_context
     from repowiki.llm.client import LLMClient
     from repowiki.llm.prompts import build_chat_prompt
 
     chunks = rag.retrieve(question, top_k=5)
-    messages = build_chat_prompt(question, format_context(chunks), cfg.language)
+    messages = build_chat_prompt(
+        question, format_context(chunks), cfg.language, history=history
+    )
     llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
     return await llm.complete(messages)
 

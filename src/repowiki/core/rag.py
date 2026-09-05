@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import re
 from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
 
 from repowiki.core.models import ProjectContext
+
+_INDEX_DIR = Path.home() / ".repowiki" / "rag"
 
 
 @dataclass
@@ -17,6 +22,22 @@ class Chunk:
     line_end: int
     content: str
     score: float = 0.0
+
+
+def index_fingerprint(project: ProjectContext) -> str:
+    """Hash of the repo root plus every indexed file's path, size, and content.
+
+    Any edit, add, or delete under the repo changes the fingerprint, so a stale
+    index on disk simply never matches.
+    """
+    h = hashlib.sha256()
+    h.update(str(Path(project.root).resolve()).encode())
+    for f in sorted(project.files, key=lambda x: x.path):
+        text = f.content or f.preview
+        h.update(f.path.encode())
+        h.update(str(f.size).encode())
+        h.update(hashlib.sha256(text.encode()).digest())
+    return h.hexdigest()[:24]
 
 
 class SimpleRAG:
@@ -54,6 +75,42 @@ class SimpleRAG:
 
         self._idf = {token: math.log(doc_count / (count + 1)) for token, count in df.items()}
 
+    def save_index(self, path: Path) -> None:
+        """Persist chunks and vectors as JSON; written atomically so a
+        half-written file never reads back as a valid index."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "chunks": [
+                {
+                    "file_path": c.file_path,
+                    "line_start": c.line_start,
+                    "line_end": c.line_end,
+                    "content": c.content,
+                }
+                for c in self.chunks
+            ],
+            "idf": self._idf,
+            "tf_vectors": [dict(tf) for tf in self._tf_vectors],
+        }
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(path)
+
+    @classmethod
+    def load_index(cls, path: Path) -> SimpleRAG | None:
+        """Read back a saved index; any corruption is treated as a cache miss."""
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            rag = cls()
+            rag.chunks = [Chunk(**c) for c in payload["chunks"]]
+            rag._idf = {t: float(v) for t, v in payload["idf"].items()}
+            rag._tf_vectors = [Counter(tf) for tf in payload["tf_vectors"]]
+            if len(rag.chunks) != len(rag._tf_vectors):
+                return None
+            return rag
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+
     def retrieve(self, query: str, top_k: int = 5) -> list[Chunk]:
         """find top-k chunks most relevant to the query."""
         if not self.chunks:
@@ -78,6 +135,29 @@ class SimpleRAG:
             results.append(chunk)
 
         return results
+
+
+def load_or_build_index(
+    project: ProjectContext, index_dir: str | Path | None = None
+) -> tuple[SimpleRAG, bool]:
+    """Load a persisted index for an unchanged repo, else build and save one.
+
+    Returns (rag, cache_hit). One JSON file per repo fingerprint; a missing or
+    mismatched file just means a rebuild.
+    """
+    index_dir = Path(index_dir) if index_dir is not None else _INDEX_DIR
+    path = index_dir / f"{index_fingerprint(project)}.json"
+    rag = SimpleRAG.load_index(path)
+    if rag is not None and rag.chunks:
+        return rag, True
+    rag = SimpleRAG()
+    rag.index(project)
+    if rag.chunks:
+        try:
+            rag.save_index(path)
+        except OSError:
+            pass  # a cache that cannot be written should not break chat
+    return rag, False
 
 
 def format_context(chunks: list[Chunk]) -> str:

@@ -22,9 +22,18 @@ class ProjectInfo(BaseModel):
     error: str = ""
 
 
+class ChatTurn(BaseModel):
+    """one prior exchange in the conversation."""
+
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class ChatRequest(BaseModel):
     question: str
-    history: list[dict] = Field(default_factory=list)
+    # prior turns, oldest first; the server threads them into the prompt so
+    # follow-up questions have context
+    history: list[ChatTurn] = Field(default_factory=list)
 
 
 class FileReference(BaseModel):

@@ -18,6 +18,9 @@ export default function ChatView() {
   function handleSend() {
     if (!input.trim() || !id || streaming) return;
     const question = input.trim();
+    // the running conversation goes up with the question so follow-ups have
+    // context; the store already holds every prior turn
+    const history = chatMessages.map(({ role, content }) => ({ role, content }));
     setInput("");
     addChatMessage({ role: "user", content: question });
     addChatMessage({ role: "assistant", content: "" });
@@ -26,6 +29,7 @@ export default function ChatView() {
     streamChat(
       id,
       question,
+      history,
       (data) => {
         if (data.references) setLastChatReferences(data.references);
         if (data.content) appendToLastChat(data.content);

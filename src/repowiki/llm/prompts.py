@@ -170,30 +170,45 @@ def build_reading_guide_prompt(
     ]
 
 
+# only the recent tail goes into the prompt: older turns rarely change an
+# answer, but every one of them costs tokens on each new question
+_MAX_CHAT_HISTORY_TURNS = 6
+
+
 def build_chat_prompt(
     question: str,
     context_chunks: str,
     language: str = "en",
+    history: list[dict] | None = None,
 ) -> list[dict]:
-    return [
+    messages = [
         {
             "role": "system",
             "content": (
                 "You are a knowledgeable developer answering questions about a codebase. "
                 "Answer based on the actual code shown below, not general knowledge. "
                 "Reference specific files and line numbers when relevant. "
-                "Be direct -- answer the question, don't give a lecture. "
+                "Be direct: answer the question, don't give a lecture. "
                 f"{_lang_instruction(language)}"
             ),
         },
+    ]
+    for turn in (history or [])[-_MAX_CHAT_HISTORY_TURNS * 2:]:
+        role = turn.get("role")
+        content = (turn.get("content") or "").strip()
+        if role not in ("user", "assistant") or not content:
+            continue
+        messages.append({"role": role, "content": content})
+    messages.append(
         {
             "role": "user",
             "content": (
                 f"## Relevant Code\n{context_chunks}\n\n"
                 f"## Question\n{question}"
             ),
-        },
-    ]
+        }
+    )
+    return messages
 
 
 def extract_json(text: str) -> dict | list | None:

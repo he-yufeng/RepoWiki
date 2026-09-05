@@ -64,7 +64,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 - **Import-aware ranking** — resolves Python and JS/TS imports before ranking files, and skips minified/generated bundles so they don't burn LLM context.
 - **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
 - **Static site publishing**: `repowiki scan . --site` drops a docsify loader (`index.html` + `.nojekyll`) into the Markdown export, so the output directory can go straight onto GitHub Pages.
-- **Web viewer + terminal chat** — a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal (built-in TF-IDF retrieval, no embeddings service).
+- **Web viewer + terminal chat**: a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal. Chat is multi-turn: the conversation so far goes into each prompt, so follow-up questions work in both the web UI and the CLI. The built-in TF-IDF index (no embeddings service) persists across runs and a second session on an unchanged repo starts warm.
 - **CLI-first** — no Docker, no database server, no browser required.
 
 ```bash
@@ -72,7 +72,7 @@ repowiki scan .                    # generate wiki
 repowiki scan . --full             # rebuild every page, ignoring incremental state
 repowiki scan . -f html --open     # open in browser
 repowiki scan . -l zh              # Chinese output
-repowiki chat .                    # interactive Q&A about the code
+repowiki chat .                    # multi-turn Q&A about the code, remembers the session
 repowiki map .                     # ranked repo map, zero LLM calls
 repowiki map . --format json       # prompt-ready ranked list for agents
 repowiki scan . --site             # markdown export plus a GitHub Pages-ready loader
