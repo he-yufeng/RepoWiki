@@ -7,11 +7,13 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/he-yufeng/RepoWiki/actions/workflows/ci.yml/badge.svg)](https://github.com/he-yufeng/RepoWiki/actions/workflows/ci.yml)
 
-[**快速开始**](#快速开始) · [**工作原理**](#工作原理) · [English](README.md)
+[**在线演示**](https://he-yufeng.github.io/RepoWiki/) · [**快速开始**](#快速开始) · [**工作原理**](#工作原理) · [English](README.md)
 
 </div>
 
 **开源 DeepWiki 替代品** — 从终端或浏览器为任意代码仓库生成完整 wiki 文档。
+
+在线演示是 RepoWiki 吃自家狗粮的产物：用 `repowiki scan . --site` 扫描本仓库生成，部署在 GitHub Pages。
 
 ## 为什么选 RepoWiki？
 
