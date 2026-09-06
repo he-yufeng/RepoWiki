@@ -5,17 +5,29 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncGenerator
 
-import litellm
-
-litellm.suppress_debug_info = True
-
 logger = logging.getLogger(__name__)
+
+_litellm = None
+
+
+def _load_litellm():
+    # litellm's import takes seconds (and can hang on 3.14), so zero-LLM paths
+    # like `repowiki map` must not pay it; import only on first LLM use
+    global _litellm
+    if _litellm is None:
+        import litellm
+
+        litellm.suppress_debug_info = True
+        _litellm = litellm
+    return _litellm
 
 
 class LLMClient:
     """async LLM client backed by litellm."""
 
     def __init__(self, model: str, api_key: str = "", api_base: str = ""):
+        # fail fast here rather than mid-pipeline if litellm is broken/missing
+        self._litellm = _load_litellm()
         self.model = model
         self.api_key = api_key
         self.api_base = api_base or None
@@ -46,7 +58,7 @@ class LLMClient:
             kwargs["response_format"] = response_format
 
         try:
-            resp = await litellm.acompletion(**kwargs)
+            resp = await self._litellm.acompletion(**kwargs)
         except Exception as e:
             logger.error("LLM call failed: %s", e)
             return f"[LLM Error: {e}]"
@@ -57,7 +69,7 @@ class LLMClient:
             self.total_output_tokens += usage.completion_tokens or 0
         # litellm cost tracking
         try:
-            cost = litellm.completion_cost(completion_response=resp)
+            cost = self._litellm.completion_cost(completion_response=resp)
             self.total_cost += cost
         except Exception:
             pass
@@ -85,7 +97,7 @@ class LLMClient:
             kwargs["api_base"] = self.api_base
 
         try:
-            resp = await litellm.acompletion(**kwargs)
+            resp = await self._litellm.acompletion(**kwargs)
             async for chunk in resp:
                 delta = chunk.choices[0].delta
                 if delta and delta.content:
