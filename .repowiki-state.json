@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "model": "openai/deepseek/deepseek-chat",
+  "language": "en",
+  "pages": {
+    "index": {
+      "inputs": "openai/deepseek/deepseek-chat:en:overview:7a0f05dd29e1b4267aa82ba8"
+    },
+    "architecture": {
+      "inputs": "openai/deepseek/deepseek-chat:en:arch:7a0f05dd29e1b4267aa82ba8"
+    },
+    "modules/tests": {
+      "inputs": "openai/deepseek/deepseek-chat:en:module:tests:13a12e46252b19770c9bbd08"
+    },
+    "modules/frontend": {
+      "inputs": "openai/deepseek/deepseek-chat:en:module:frontend:9ae1f11ae7dc9fe3e7ecb3e8"
+    },
+    "modules/root": {
+      "inputs": "openai/deepseek/deepseek-chat:en:module:root:7475c8a7ca0371c11b20bac6"
+    },
+    "modules/.github": {
+      "inputs": "openai/deepseek/deepseek-chat:en:module:.github:b30110f65100de04ebdfd3bb"
+    },
+    "modules/repowiki": {
+      "inputs": "openai/deepseek/deepseek-chat:en:module:repowiki:6df1189aef72cdccfcb2f2c0"
+    },
+    "reading-guide": {
+      "inputs": "openai/deepseek/deepseek-chat:en:guide:7a0f05dd29e1b4267aa82ba8:9338c16b53a86a9bbc14206d"
+    },
+    "dependencies": {
+      "inputs": "page:061d7c8b2cf11ccdd34195cb"
+    },
+    "symbols": {
+      "inputs": "page:ae820115e9329f867988eaef"
+    }
+  }
+}
