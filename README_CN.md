@@ -62,7 +62,7 @@ repowiki serve ./my-project   # 可选：启动时直接加载一个项目
 - **结构化 wiki** — 项目概览、逐模块文档、自动识别的架构（含 Mermaid 图），以及基于 PageRank 的"从这里开始读"路径。
 - **页面交叉链接**：页面里反引号包住的符号名或文件路径，如果正好对应另一个 wiki 页面，就会自动变成指向那一页的链接（Markdown 里是相对 .md 链接，HTML 导出里是页内跳转）。围栏代码块原样保留；同一个名字被多个页面定义时，链到第一个页面。
 - **全局符号索引**：索引页汇总分析记录的所有关键符号，先按类别（class、function 等）分组，组内再按模块归类，每个符号都链回所属模块页；没有记录符号的项目不生成该页。
-- **增量重跑**：输出目录里的 `.repowiki-state.json` 记录每个页面由哪些输入生成，再次扫描只重新生成源码有变化的页面，并清理被删模块对应的页面；JSON 和 HTML 导出在内容没有变化时直接不写盘。加 `--full` 可强制全量重建。
+- **增量重跑**：输出目录里的 `.repowiki-state.json` 记录每个页面由哪些输入生成，再次扫描只重新生成源码有变化的页面，并清理被删模块对应的页面；JSON 和 HTML 导出在内容没有变化时直接不写盘。加 `--full` 可强制全量重建。没变的页面连 LLM 调用都省掉：分析结果存在按内容寻址的 SQLite 缓存里（`~/.repowiki/cache.db`），小改之后重扫对没动的模块零 API 调用。想提交后自动刷新，在 `.git/hooks/post-commit` 里触发一次 `repowiki scan . --site -o docs/wiki &`，或在 CI 里 push 后跑一次——缓存保证了它足够便宜，不需要常驻监听进程。
 - **import 感知排名** — 先解析 Python 和 JS/TS 的 import 再排名，并跳过 minified/生成式 bundle，避免浪费 LLM 上下文。
 - **三种导出格式** — 可直接提交的 Markdown 目录、结构化 JSON，或自包含、随手能分享的 HTML 单文件（含图表）。
 - **静态站点发布**：`repowiki scan . --site` 会在 Markdown 导出目录里生成 docsify 加载页（`index.html` 和 `.nojekyll`），把目录推到 GitHub Pages 上就是一个能直接浏览的文档站。
