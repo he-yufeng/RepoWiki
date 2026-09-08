@@ -53,3 +53,32 @@ def test_scan_skips_real_env_files_but_keeps_example(tmp_path):
     assert ".env" not in paths
     assert ".env.local" not in paths
     assert ".env.example" in paths
+
+
+def test_scan_cap_prefers_code_over_docs(tmp_path):
+    # a docs-heavy repo (docs/ walks before src/ alphabetically) must not
+    # spend the whole file budget on markdown before any source is seen
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    for i in range(12):
+        (docs / f"page{i:02d}.md").write_text(f"# page {i}\n", encoding="utf-8")
+    src = tmp_path / "src"
+    src.mkdir()
+    for name in ("app.py", "lib.py", "util.py"):
+        (src / name).write_text(f"# {name}\nx = 1\n", encoding="utf-8")
+
+    files = scan_directory(tmp_path, max_files=6)
+    paths = {f.path.replace("\\", "/") for f in files}
+
+    assert len(files) == 6
+    assert {"src/app.py", "src/lib.py", "src/util.py"} <= paths
+
+
+def test_scan_under_cap_keeps_docs(tmp_path):
+    (tmp_path / "readme.md").write_text("# hi\n", encoding="utf-8")
+    (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
+
+    files = scan_directory(tmp_path, max_files=10)
+    paths = {f.path for f in files}
+
+    assert {"readme.md", "app.py"} == paths

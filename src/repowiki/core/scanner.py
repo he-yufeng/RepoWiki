@@ -98,6 +98,15 @@ _LANG_MAP = {
     ".dockerfile": "dockerfile",
 }
 
+# languages that carry the dependency structure of a repo; docs and assets
+# only get file-cap budget after these are safe
+_CODE_LANGS = frozenset({
+    "python", "javascript", "typescript", "jsx", "tsx", "go", "rust", "java",
+    "kotlin", "scala", "c", "cpp", "csharp", "ruby", "php", "r", "sql",
+    "swift", "lua", "dart", "vue", "svelte", "zig", "shell", "dockerfile",
+    "makefile",
+})
+
 # files that give the LLM project context -- always read in full
 _CONFIG_FILES = {
     "requirements.txt", "setup.py", "setup.cfg", "pyproject.toml",
@@ -255,6 +264,10 @@ def scan_directory(
     results: list[FileInfo] = []
     ignore_rules = IgnoreRules.from_root(root)
 
+    # the walk only stops at this hard ceiling; the real max_files budget is
+    # applied by priority after the walk
+    hard_cap = max(max_files * 4, max_files + 100)
+
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
         kept_dirs = []
         for dirname in dirnames:
@@ -268,8 +281,8 @@ def scan_directory(
         dirnames[:] = kept_dirs
 
         for fname in filenames:
-            if len(results) >= max_files:
-                logger.info("Hit file cap (%d), stopping", max_files)
+            if len(results) >= hard_cap:
+                logger.info("Hit hard scan cap (%d), stopping", hard_cap)
                 break
 
             full = Path(dirpath) / fname
@@ -332,8 +345,28 @@ def scan_directory(
                 is_entrypoint=is_entry,
             ))
 
-        if len(results) >= max_files:
+        if len(results) >= hard_cap:
             break
+
+    # cap by priority, not walk order: on docs-heavy repos the plain walk
+    # fills the budget with markdown before the source tree is reached
+    if len(results) > max_files:
+        keep = sorted(
+            range(len(results)),
+            key=lambda i: (
+                0 if results[i].is_config or results[i].is_entrypoint
+                else 1 if results[i].language in _CODE_LANGS
+                else 2,
+                i,
+            ),
+        )[:max_files]
+        dropped = len(results) - len(keep)
+        results = [results[i] for i in sorted(keep)]
+        logger.info(
+            "File cap (%d) hit; kept configs/entrypoints/code first, dropped %d lower-priority files",
+            max_files,
+            dropped,
+        )
 
     # sort: configs first, then entrypoints, then alphabetical
     def _sort_key(f: FileInfo) -> tuple:
