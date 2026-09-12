@@ -48,3 +48,19 @@ def test_root_with_partial_frontend_shows_build_instructions(monkeypatch, tmp_pa
         resp = client.get("/")
         assert resp.status_code == 200
         assert "npm run build" in resp.text
+
+
+def test_client_side_route_falls_back_to_app_shell(monkeypatch, tmp_path):
+    # a citation link like /project/<id>/file/auth.py#L4-L6 is opened cold by
+    # the browser; the React app must boot, not 404
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "index.html").write_text("<html><body>repowiki ui</body></html>", encoding="utf-8")
+
+    with _client(monkeypatch, tmp_path, static) as client:
+        for path in ("/project/p1", "/project/p1/chat", "/project/p1/file/auth.py"):
+            resp = client.get(path)
+            assert resp.status_code == 200
+            assert "repowiki ui" in resp.text
+        # API misses must not be swallowed by the fallback
+        assert client.get("/api/no-such-endpoint").status_code == 404

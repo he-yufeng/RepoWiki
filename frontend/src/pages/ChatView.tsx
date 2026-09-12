@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { streamChat } from "../lib/api";
 import { useWikiStore } from "../stores/wiki";
 
@@ -81,6 +81,14 @@ export default function ChatView() {
                         {ref.path}:{ref.line_start}-{ref.line_end}
                       </summary>
                       <pre className="px-3 py-2 text-xs font-mono text-slate-600 whitespace-pre-wrap border-t border-slate-200">{ref.snippet}</pre>
+                      <div className="px-3 pb-2">
+                        <Link
+                          to={`/project/${id}/file/${ref.path}#L${ref.line_start}-L${ref.line_end}`}
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          open in file view →
+                        </Link>
+                      </div>
                     </details>
                   ))}
                 </div>

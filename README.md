@@ -67,7 +67,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 - **Honest coverage reporting** — when the scan can't take the whole repo, it says so: the overview page and the CLI both flag partial coverage (files kept vs. candidates, oversized and excluded paths), so a wiki never quietly claims to be complete.
 - **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
 - **Static site publishing**: `repowiki scan . --site` drops a docsify loader (`index.html` + `.nojekyll`) into the Markdown export, so the output directory can go straight onto GitHub Pages.
-- **Web viewer + terminal chat**: a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal. Chat is multi-turn: the conversation so far goes into each prompt, so follow-up questions work in both the web UI and the CLI. The built-in TF-IDF index (no embeddings service) persists across runs and a second session on an unchanged repo starts warm.
+- **Web viewer + terminal chat**: a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal. Chat is multi-turn: the conversation so far goes into each prompt, so follow-up questions work in both the web UI and the CLI. Every answer carries its sources at line precision: the CLI prints a `file:start-end` footer under each reply, and the web UI links each reference into a file viewer that opens the exact line range (`/project/<id>/file/<path>#L120-L140`-style links survive refresh and sharing). The built-in TF-IDF index (no embeddings service) persists across runs and a second session on an unchanged repo starts warm.
 - **CLI-first** — no Docker, no database server, no browser required.
 
 ```bash

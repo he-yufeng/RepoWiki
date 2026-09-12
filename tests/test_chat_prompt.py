@@ -90,11 +90,13 @@ def test_cli_answer_question_passes_prior_turns(monkeypatch):
         {"role": "assistant", "content": "in auth.py"},
     ]
 
-    answer = asyncio.run(cli._answer_question("how does it verify", rag, cfg, history))
+    answer, chunks = asyncio.run(cli._answer_question("how does login verify", rag, cfg, history))
 
     assert answer == "stub answer"
+    # sources carry the line ranges the CLI prints under the answer
+    assert [(c.file_path, c.line_start, c.line_end) for c in chunks] == [("auth.py", 1, 2)]
     msgs = captured["messages"]
     assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
     assert msgs[1]["content"] == "where is login"
     assert msgs[2]["content"] == "in auth.py"
-    assert "how does it verify" in msgs[-1]["content"]
+    assert "how does login verify" in msgs[-1]["content"]

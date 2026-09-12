@@ -437,15 +437,20 @@ def chat(path_or_url: str, model: str | None, lang: str | None):
             continue
         if question.lower() in {"exit", "quit", ":q"}:
             break
-        answer = asyncio.run(_answer_question(question, rag, cfg, history))
+        answer, chunks = asyncio.run(_answer_question(question, rag, cfg, history))
         history.append({"role": "user", "content": question})
         history.append({"role": "assistant", "content": answer})
         console.print(f"\n{answer}\n")
+        if chunks:
+            refs = " · ".join(
+                f"{c.file_path}:{c.line_start}-{c.line_end}" for c in chunks
+            )
+            console.print(f"[dim]Sources: {refs}[/]")
 
 
 async def _answer_question(
     question: str, rag, cfg: Config, history: list[dict] | None = None
-) -> str:
+) -> tuple[str, list]:
     """Retrieve relevant code and ask the LLM a single question."""
     from repowiki.core.rag import format_context
     from repowiki.llm.client import LLMClient
@@ -456,7 +461,7 @@ async def _answer_question(
         question, format_context(chunks), cfg.language, history=history
     )
     llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
-    return await llm.complete(messages)
+    return await llm.complete(messages), chunks
 
 
 @cli.group("config")

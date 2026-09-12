@@ -126,7 +126,23 @@ def create_app(static_dir: str | Path | None = None):
     # / with a bare 404, so point at the PyPI wheel or the frontend build instead
     static_path = Path(static_dir) if static_dir is not None else Path(__file__).parent / "static"
     if (static_path / "index.html").is_file():
-        app.mount("/", StaticFiles(directory=str(static_path), html=True))
+
+        class _SPAStaticFiles(StaticFiles):
+            # React Router owns paths like /project/<id>/chat or a citation
+            # link into /project/<id>/file/<path>#L120; a refresh or a shared
+            # link hits the server directly and must get the app shell back,
+            # not a 404. /api misses keep their real 404.
+            async def get_response(self, path: str, scope):
+                from starlette.exceptions import HTTPException
+
+                try:
+                    return await super().get_response(path, scope)
+                except HTTPException as exc:
+                    if exc.status_code == 404 and not path.lstrip("/").startswith("api/"):
+                        return await super().get_response("index.html", scope)
+                    raise
+
+        app.mount("/", _SPAStaticFiles(directory=str(static_path), html=True))
     else:
         from fastapi.responses import HTMLResponse
 
