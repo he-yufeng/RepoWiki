@@ -7,7 +7,7 @@ import os
 from fnmatch import fnmatch
 from pathlib import Path
 
-from repowiki.core.models import FileInfo
+from repowiki.core.models import FileInfo, ScanReport
 
 logger = logging.getLogger(__name__)
 
@@ -255,8 +255,13 @@ def scan_directory(
     max_file_size: int = 200 * 1024,
     max_files: int = 1000,
     preview_lines: int = 80,
+    report: ScanReport | None = None,
 ) -> list[FileInfo]:
-    """walk a project directory and return file info with previews."""
+    """walk a project directory and return file info with previews.
+
+    When a ScanReport is passed it is filled with the coverage story: how many
+    candidate files existed, how many were kept, and what was dropped and why.
+    """
     root = Path(root).resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"Not a directory: {root}")
@@ -274,8 +279,12 @@ def scan_directory(
             full_dir = Path(dirpath) / dirname
             rel_dir = full_dir.relative_to(root).as_posix()
             if dirname in _SKIP_DIRS or dirname.endswith(".egg-info"):
+                if report is not None:
+                    report.skipped_dirs.append(rel_dir)
                 continue
             if ignore_rules.matches(rel_dir, is_dir=True):
+                if report is not None:
+                    report.skipped_dirs.append(rel_dir)
                 continue
             kept_dirs.append(dirname)
         dirnames[:] = kept_dirs
@@ -301,11 +310,18 @@ def scan_directory(
             if _has_skipped_suffix(full):
                 continue
 
+            if report is not None:
+                report.candidates += 1
+
             try:
                 size = full.stat().st_size
             except OSError:
                 continue
             if size > max_file_size or size == 0:
+                if report is not None and size > max_file_size:
+                    report.oversized_count += 1
+                    if len(report.oversized) < 3:
+                        report.oversized.append(rel_posix)
                 continue
 
             try:
@@ -313,6 +329,8 @@ def scan_directory(
             except OSError:
                 continue
             if _is_binary(raw):
+                if report is not None:
+                    report.binary_count += 1
                 continue
 
             try:
@@ -321,6 +339,8 @@ def scan_directory(
                 continue
 
             if _looks_minified_source(rel, text):
+                if report is not None:
+                    report.minified_count += 1
                 continue
 
             lang = detect_language(rel)
@@ -362,11 +382,16 @@ def scan_directory(
         )[:max_files]
         dropped = len(results) - len(keep)
         results = [results[i] for i in sorted(keep)]
+        if report is not None:
+            report.priority_dropped = dropped
         logger.info(
             "File cap (%d) hit; kept configs/entrypoints/code first, dropped %d lower-priority files",
             max_files,
             dropped,
         )
+
+    if report is not None:
+        report.kept = len(results)
 
     # sort: configs first, then entrypoints, then alphabetical
     def _sort_key(f: FileInfo) -> tuple:

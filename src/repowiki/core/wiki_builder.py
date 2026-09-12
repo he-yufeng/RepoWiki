@@ -123,6 +123,15 @@ class WikiBuilder:
         if overview.description:
             lines.append(f"{overview.description}\n")
 
+        if project.coverage is not None and project.coverage.partial:
+            cov = project.coverage
+            note = f"> **Partial coverage:** this wiki was built from {cov.summary_line()}."
+            if cov.oversized:
+                note += " Oversized files left out: " + ", ".join(f"`{p}`" for p in cov.oversized) + "."
+            if cov.skipped_dirs:
+                note += " Excluded directories: " + ", ".join(f"`{d}`" for d in cov.skipped_dirs[:5]) + "."
+            lines.append(note + " Pages below describe only the scanned subset.\n")
+
         if overview.tech_stack:
             lines.append("## Tech Stack\n")
             for t in overview.tech_stack:

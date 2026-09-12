@@ -64,6 +64,7 @@ repowiki serve ./my-project   # 可选：启动时直接加载一个项目
 - **全局符号索引**：索引页汇总分析记录的所有关键符号，先按类别（class、function 等）分组，组内再按模块归类，每个符号都链回所属模块页；没有记录符号的项目不生成该页。
 - **增量重跑**：输出目录里的 `.repowiki-state.json` 记录每个页面由哪些输入生成，再次扫描只重新生成源码有变化的页面，并清理被删模块对应的页面；JSON 和 HTML 导出在内容没有变化时直接不写盘。加 `--full` 可强制全量重建。没变的页面连 LLM 调用都省掉：分析结果存在按内容寻址的 SQLite 缓存里（`~/.repowiki/cache.db`），小改之后重扫对没动的模块零 API 调用。想提交后自动刷新，在 `.git/hooks/post-commit` 里触发一次 `repowiki scan . --site -o docs/wiki &`，或在 CI 里 push 后跑一次——缓存保证了它足够便宜，不需要常驻监听进程。
 - **import 感知排名** — 先解析 Python 和 JS/TS 的 import 再排名，并跳过 minified/生成式 bundle，避免浪费 LLM 上下文。
+- **覆盖率如实标注** — 扫不下整个仓库时绝不装成扫完了：概览页和 CLI 都会明确标出部分覆盖（实际纳入 vs 候选文件数、超大文件与被排除目录），wiki 不会悄悄自称完整。
 - **三种导出格式** — 可直接提交的 Markdown 目录、结构化 JSON，或自包含、随手能分享的 HTML 单文件（含图表）。
 - **静态站点发布**：`repowiki scan . --site` 会在 Markdown 导出目录里生成 docsify 加载页（`index.html` 和 `.nojekyll`），把目录推到 GitHub Pages 上就是一个能直接浏览的文档站。
 - **Web 查看器 + 终端问答**：三栏浏览器界面，或 `repowiki chat .` 在终端里做基于源码的问答。问答支持多轮对话：之前的问答会带进每次请求，Web 界面和 CLI 里都能追问。内置 TF-IDF 检索（无需 embedding 服务），索引会落盘缓存，对没动过的仓库第二次启动直接热启动，不用重建。

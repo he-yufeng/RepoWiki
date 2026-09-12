@@ -14,6 +14,7 @@ from repowiki.config import Config, resolve_model
 from repowiki.ingest.github import parse_git_url
 
 console = Console()
+err_console = Console(stderr=True)
 
 
 def _is_url(s: str) -> bool:
@@ -46,7 +47,7 @@ def repo_map(path: str, top: int, fmt: str):
     import json
 
     from repowiki.core.graph import DependencyGraph
-    from repowiki.core.models import ProjectContext
+    from repowiki.core.models import ProjectContext, ScanReport
     from repowiki.core.scanner import scan_directory
 
     if _is_url(path):
@@ -55,9 +56,13 @@ def repo_map(path: str, top: int, fmt: str):
         raise click.UsageError("--top must be greater than zero")
 
     with console.status("[bold cyan]Mapping repository..."):
-        files = scan_directory(path)
+        report = ScanReport()
+        files = scan_directory(path, report=report)
         project = ProjectContext(name=path, root=path, files=files)
         ranked = DependencyGraph.build_from_project(project).rank_files()
+
+    if report.partial:
+        err_console.print(f"[yellow]Partial coverage:[/] {report.summary_line()}")
 
     entries = [
         {
@@ -73,9 +78,10 @@ def repo_map(path: str, top: int, fmt: str):
     ]
 
     if fmt == "json":
-        console.print_json(
-            json.dumps({"root": path, "file_count": len(files), "entries": entries})
-        )
+        payload = {"root": path, "file_count": len(files), "entries": entries}
+        if report.partial:
+            payload["partial_coverage"] = report.summary_line()
+        console.print_json(json.dumps(payload))
         return
 
     table = Table(title=f"Repo map: {path} ({len(files)} files)")

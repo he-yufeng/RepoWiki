@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from repowiki.core.models import FileInfo, ProjectContext
+from repowiki.core.models import FileInfo, ProjectContext, ScanReport
 from repowiki.core.scanner import build_file_tree, scan_directory
 
 
@@ -48,7 +48,8 @@ def ingest_local(
     if not root.is_dir():
         raise FileNotFoundError(f"Not a directory: {root}")
 
-    files = scan_directory(root, max_file_size=max_file_size, max_files=max_files)
+    report = ScanReport()
+    files = scan_directory(root, max_file_size=max_file_size, max_files=max_files, report=report)
     name = _guess_project_name(root, files)
     tree = build_file_tree(files)
 
@@ -57,4 +58,5 @@ def ingest_local(
         root=str(root),
         files=files,
         file_tree=tree,
+        coverage=report,
     )

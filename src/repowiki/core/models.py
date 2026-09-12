@@ -18,6 +18,41 @@ class FileInfo(BaseModel):
     is_entrypoint: bool = False
 
 
+class ScanReport(BaseModel):
+    """how much of the repo the scan actually covered.
+
+    A wiki built from a partial scan must say so instead of looking complete:
+    the counts below drive the coverage note on the overview page."""
+
+    candidates: int = 0  # files that passed the name/ignore filters
+    kept: int = 0  # files that made it into the context
+    oversized: list[str] = Field(default_factory=list)  # first oversized paths
+    oversized_count: int = 0
+    binary_count: int = 0
+    minified_count: int = 0
+    priority_dropped: int = 0  # dropped by the max_files priority cap
+    skipped_dirs: list[str] = Field(default_factory=list)
+
+    @property
+    def partial(self) -> bool:
+        return self.kept < self.candidates
+
+    def summary_line(self) -> str:
+        parts = [f"{self.kept} of {self.candidates} files"]
+        drops = []
+        if self.oversized_count:
+            drops.append(f"{self.oversized_count} oversized")
+        if self.binary_count:
+            drops.append(f"{self.binary_count} binary")
+        if self.minified_count:
+            drops.append(f"{self.minified_count} minified/generated")
+        if self.priority_dropped:
+            drops.append(f"{self.priority_dropped} lower-priority over the file cap")
+        if drops:
+            parts.append("skipped: " + ", ".join(drops))
+        return "; ".join(parts)
+
+
 class ProjectContext(BaseModel):
     """everything we know about a project before LLM analysis."""
 
@@ -25,6 +60,7 @@ class ProjectContext(BaseModel):
     root: str
     files: list[FileInfo] = Field(default_factory=list)
     file_tree: str = ""
+    coverage: ScanReport | None = None
 
     @property
     def total_lines(self) -> int:
