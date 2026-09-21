@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from repowiki.core.models import FileInfo, ProjectContext
 from types import SimpleNamespace
 
+from repowiki.core.models import FileInfo, ProjectContext
 from repowiki.core.rag import SimpleRAG, format_context
 
 
