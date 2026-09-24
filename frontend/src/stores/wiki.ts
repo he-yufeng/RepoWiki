@@ -24,7 +24,7 @@ interface WikiStore {
   chatMessages: ChatMessage[];
   loading: boolean;
   error: string;
-  settings: { apiKey: string; model: string; language: string };
+  settings: { apiKey: string; model: string; language: string; protocol: string; baseUrl: string };
 
   setProjectId: (id: string) => void;
   setProject: (p: ProjectInfo) => void;
@@ -51,7 +51,7 @@ export const useWikiStore = create<WikiStore>()(
       chatMessages: [],
       loading: false,
       error: "",
-      settings: { apiKey: "", model: "deepseek", language: "en" },
+      settings: { apiKey: "", model: "deepseek", language: "en", protocol: "", baseUrl: "" },
 
       setProjectId: (id) => set({ projectId: id }),
       setProject: (p) => set({ project: p }),

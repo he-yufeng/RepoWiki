@@ -11,6 +11,17 @@ class ScanRequest(BaseModel):
     language: str = "en"
     model: str | None = None
     api_key: str | None = None
+    api_base: str | None = None
+    protocol: str | None = None
+
+
+class ProtocolCheckRequest(BaseModel):
+    """Payload for pinging a gateway with the selected model before saving."""
+
+    protocol: str | None = None
+    api_base: str | None = None
+    api_key: str | None = None
+    model: str | None = None
 
 
 class ProjectInfo(BaseModel):

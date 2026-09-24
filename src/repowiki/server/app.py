@@ -113,10 +113,11 @@ def create_app(static_dir: str | Path | None = None):
     )
 
     # register routers
-    from repowiki.server.routers import chat, scan, wiki
+    from repowiki.server.routers import chat, providers, scan, wiki
     app.include_router(scan.router, prefix="/api")
     app.include_router(wiki.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
+    app.include_router(providers.router, prefix="/api")
 
     @app.get("/api/health")
     async def health():

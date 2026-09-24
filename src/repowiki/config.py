@@ -23,10 +23,31 @@ MODEL_ALIASES = {
     "gpt-mini": "gpt-5.4-mini",
     "gemini": "gemini/gemini-3.1-pro-preview",
     "gemini-flash": "gemini/gemini-2.5-flash",
-    "qwen": "openai/qwen3.5-plus",
-    "kimi": "openai/kimi-k2.6",
-    "glm": "openai/glm-5",
+    # Route through each vendor's native litellm provider so the request hits
+    # the right endpoint; the old openai/ values silently 404'd on OpenAI.
+    "qwen": "dashscope/qwen3.5-plus",
+    "kimi": "moonshot/kimi-k2.6",
+    "glm": "zai/glm-5",
+    # MiniMax has no native litellm provider; it stays OpenAI-compatible and
+    # relies on the provider registry supplying its base_url.
     "minimax": "openai/MiniMax-M2.7",
+}
+
+# Human labels for those aliases, shown by the settings form's preset picker.
+# Same keys as MODEL_ALIASES (served to the UI together) so a new alias only
+# needs a label to appear there; a missing label falls back to the alias id.
+MODEL_LABELS = {
+    "deepseek": "DeepSeek V3.2",
+    "opus": "Claude Opus 4.6",
+    "claude": "Claude Sonnet 4.6",
+    "gpt": "GPT-5.4",
+    "gpt-mini": "GPT-5.4 Mini",
+    "gemini": "Gemini 3.1 Pro",
+    "gemini-flash": "Gemini 2.5 Flash",
+    "qwen": "Qwen3.5 Plus",
+    "kimi": "Kimi K2.6",
+    "glm": "GLM-5",
+    "minimax": "MiniMax M2.7",
 }
 
 
@@ -39,6 +60,7 @@ class Config:
     model: str = "deepseek/deepseek-chat"
     api_key: str = ""
     api_base: str = ""
+    protocol: str = ""
     language: str = "en"
     max_file_size: int = 200 * 1024  # 200 KB
     max_files: int = 1000
@@ -64,6 +86,8 @@ class Config:
             cfg.api_key = val
         if val := os.getenv("REPOWIKI_API_BASE"):
             cfg.api_base = val
+        if val := os.getenv("REPOWIKI_PROTOCOL"):
+            cfg.protocol = val
         if val := os.getenv("REPOWIKI_LANG"):
             cfg.language = val
 
@@ -83,6 +107,7 @@ class Config:
             "model": self.model,
             "api_key": self.api_key,
             "api_base": self.api_base,
+            "protocol": self.protocol,
             "language": self.language,
         }
         # don't persist empty values

@@ -8,7 +8,7 @@ import json
 from fastapi import APIRouter, Header
 from fastapi.responses import StreamingResponse
 
-from repowiki.config import Config
+from repowiki.config import Config, resolve_model
 from repowiki.server.app import get_projects
 from repowiki.server.models import ChatRequest
 
@@ -16,7 +16,14 @@ router = APIRouter()
 
 
 @router.post("/project/{project_id}/chat")
-async def chat(project_id: str, req: ChatRequest, x_api_key: str | None = Header(None)):
+async def chat(
+    project_id: str,
+    req: ChatRequest,
+    x_api_key: str | None = Header(None),
+    x_api_protocol: str | None = Header(None),
+    x_api_base: str | None = Header(None),
+    x_model: str | None = Header(None),
+):
     """SSE streaming chat response with RAG retrieval."""
     projects = get_projects()
     proj = projects.get(project_id)
@@ -66,10 +73,17 @@ async def chat(project_id: str, req: ChatRequest, x_api_key: str | None = Header
 
     context_text = "\n\n".join(context_parts)
 
-    # get LLM config
+    # get LLM config; the web UI sends its saved protocol/base/model as
+    # headers so chat honours the settings form, not just the config file
     cfg = Config.load()
     if x_api_key:
         cfg.api_key = x_api_key
+    if x_api_protocol:
+        cfg.protocol = x_api_protocol
+    if x_api_base:
+        cfg.api_base = x_api_base
+    if x_model:
+        cfg.model = resolve_model(x_model)
 
     if not cfg.api_key:
         return {"error": "No API key configured"}
@@ -77,7 +91,12 @@ async def chat(project_id: str, req: ChatRequest, x_api_key: str | None = Header
     from repowiki.llm.client import LLMClient
     from repowiki.llm.prompts import build_chat_prompt
 
-    llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
+    llm = LLMClient(
+        model=cfg.model,
+        api_key=cfg.api_key,
+        api_base=cfg.api_base,
+        protocol=cfg.protocol or None,
+    )
     history = [{"role": t.role, "content": t.content} for t in req.history]
     messages = build_chat_prompt(req.question, context_text, cfg.language, history=history)
 

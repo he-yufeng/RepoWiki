@@ -4,6 +4,13 @@ function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const apiKey = localStorage.getItem("repowiki_api_key");
   if (apiKey) headers["x-api-key"] = apiKey;
+  // the settings form persists these so chat/scan honour the saved gateway
+  const protocol = localStorage.getItem("repowiki_protocol");
+  if (protocol) headers["x-api-protocol"] = protocol;
+  const apiBase = localStorage.getItem("repowiki_api_base");
+  if (apiBase) headers["x-api-base"] = apiBase;
+  const model = localStorage.getItem("repowiki_model");
+  if (model) headers["x-model"] = model;
   return headers;
 }
 
@@ -12,6 +19,8 @@ export interface ScanRequest {
   url?: string;
   language?: string;
   model?: string;
+  api_base?: string;
+  protocol?: string;
 }
 
 export interface ProjectInfo {

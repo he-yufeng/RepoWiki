@@ -92,11 +92,32 @@ repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen /
 repowiki scan . -m gpt               # 或直接传模型名
 ```
 
+`qwen`、`kimi`、`glm` 这几个别名现在走各家原生的 litellm provider（`dashscope/`、`moonshot/`、`zai/`），因此要用对应厂商自己的 key。它们此前带 `openai/` 前缀，litellm 会解析到 platform.openai.com 然后鉴权失败。
+
+### OpenAI 兼容与 Anthropic 兼容网关
+
+按网关说的**线路协议**接入即可——不用记厂商清单，也不用猜 litellm 前缀：
+
+```bash
+repowiki scan . -m qwen3.8-flash \
+  --api-base https://gateway.example.com/compatible-mode/v1 \
+  --protocol chat_completions
+```
+
+| `--protocol` | 请求形状 | Base URL 约定 | 模型列表 |
+| --- | --- | --- | --- |
+| `chat_completions` | `POST {base}/chat/completions` | 以 `/v1` 结尾 | `GET {base}/models` |
+| `anthropic_messages` | `POST {base}/v1/messages` | 根地址 | `GET {base}/v1/models`——多数网关不提供 |
+
+Base URL 会按协议自动归一（缺 `/v1` 补上，Anthropic 系尾部的 `/v1` 剥掉），消灭 `/v1/v1` 与缺 `/v1` 两类 404。裸模型 ID 会补上该协议的 litellm 前缀；已带前缀的（`dashscope/qwen3.5-plus`）原样透传。
+
+Web UI 把同一套流程做成三步——连接信息、模型（保留内置预设、能发现就下拉选，网关不提供列表就手填 ID）、验证（只 ping 你选中的那个模型；预设按上面的别名走原生路由，无需探测）。`max_tokens` 也改为从模型真实输出窗口推导，不再写死。
+
 ## 配置
 
 RepoWiki 按以下顺序查找配置：
-1. 命令行参数（`-m`、`-l`、`-o`）
-2. 环境变量（`REPOWIKI_MODEL`、`REPOWIKI_API_KEY`）
+1. 命令行参数（`-m`、`-l`、`-o`、`--api-base`、`--protocol`）
+2. 环境变量（`REPOWIKI_MODEL`、`REPOWIKI_API_KEY`、`REPOWIKI_API_BASE`、`REPOWIKI_PROTOCOL`）
 3. 配置文件（`~/.repowiki/config.json`）
 4. 各提供商专用环境变量（`DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`）
 

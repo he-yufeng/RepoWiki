@@ -85,3 +85,17 @@ def test_llm_client_construction_imports_litellm():
         assert "litellm" in sys.modules
         """
     )
+
+
+def test_provider_registry_and_app_factory_stay_litellm_free():
+    pytest.importorskip("fastapi")
+    _probe(
+        """
+        import sys
+        import repowiki.llm.providers
+        import repowiki.server.routers.providers
+        from repowiki.server.app import create_app
+        create_app()  # wires every router, including the providers wizard API
+        assert "litellm" not in sys.modules
+        """
+    )

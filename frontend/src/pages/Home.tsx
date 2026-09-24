@@ -25,6 +25,8 @@ export default function Home() {
         url: url.trim(),
         language: settings.language,
         model: settings.model || undefined,
+        protocol: settings.protocol || undefined,
+        api_base: settings.baseUrl || undefined,
       });
       setProjectId(info.id);
       setProject(info);

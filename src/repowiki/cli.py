@@ -12,6 +12,7 @@ from rich.tree import Tree
 from repowiki import __version__
 from repowiki.config import Config, resolve_model
 from repowiki.ingest.github import parse_git_url
+from repowiki.llm.providers import get_protocol
 
 console = Console()
 err_console = Console(stderr=True)
@@ -19,6 +20,21 @@ err_console = Console(stderr=True)
 
 def _is_url(s: str) -> bool:
     return s.startswith("http") or parse_git_url(s) is not None
+
+
+def _apply_protocol(cfg: Config, api_base: str | None, protocol: str | None) -> None:
+    """Point cfg at a gateway from --api-base and tag the wire protocol.
+
+    The protocol decides how the model id is qualified and how the base URL
+    is normalised (/v1 suffix vs bare root); an explicit --api-base always
+    wins over anything stored in the config file.
+    """
+    if protocol:
+        if get_protocol(protocol) is None:
+            raise click.UsageError(f"unknown protocol: {protocol}")
+        cfg.protocol = protocol
+    if api_base:
+        cfg.api_base = api_base
 
 
 @click.group()
@@ -121,6 +137,13 @@ def repo_map(path: str, top: int, fmt: str):
 )
 @click.option("-l", "--lang", default=None, help="Output language (en/zh/ja/ko)")
 @click.option("-m", "--model", default=None, help="LLM model name or alias")
+@click.option("--api-base", default=None, help="Override the gateway Base URL")
+@click.option(
+    "--protocol",
+    default=None,
+    type=click.Choice(["chat_completions", "anthropic_messages"]),
+    help="Wire protocol of the gateway (normalises base URL + model prefix)",
+)
 @click.option("--open", "open_browser", is_flag=True, help="Open HTML output in browser")
 @click.option(
     "--full",
@@ -138,6 +161,8 @@ def scan(
     fmt: str,
     lang: str | None,
     model: str | None,
+    api_base: str | None,
+    protocol: str | None,
     open_browser: bool,
     full: bool,
     site: bool,
@@ -148,6 +173,7 @@ def scan(
         cfg.language = lang
     if model:
         cfg.model = resolve_model(model)
+    _apply_protocol(cfg, api_base, protocol)
     if output:
         cfg.output_dir = output
 
@@ -217,7 +243,9 @@ async def _run_analysis(
     from repowiki.core.cache import Cache
     from repowiki.llm.client import LLMClient
 
-    llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
+    llm = LLMClient(
+        model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base, protocol=cfg.protocol or None
+    )
     cache = Cache()
     await cache.init()
 
@@ -380,13 +408,27 @@ def cache_clear():
 @click.argument("path_or_url", default=".")
 @click.option("-m", "--model", default=None, help="LLM model name or alias")
 @click.option("-l", "--lang", default=None, help="Answer language (en/zh/ja/ko)")
-def chat(path_or_url: str, model: str | None, lang: str | None):
+@click.option("--api-base", default=None, help="Override the gateway Base URL")
+@click.option(
+    "--protocol",
+    default=None,
+    type=click.Choice(["chat_completions", "anthropic_messages"]),
+    help="Wire protocol of the gateway (normalises base URL + model prefix)",
+)
+def chat(
+    path_or_url: str,
+    model: str | None,
+    lang: str | None,
+    api_base: str | None,
+    protocol: str | None,
+):
     """Ask questions about a codebase in the terminal."""
     cfg = Config.load()
     if model:
         cfg.model = resolve_model(model)
     if lang:
         cfg.language = lang
+    _apply_protocol(cfg, api_base, protocol)
 
     if not cfg.api_key:
         console.print(
@@ -465,7 +507,9 @@ async def _answer_question(
     messages = build_chat_prompt(
         question, format_context(chunks), cfg.language, history=history
     )
-    llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
+    llm = LLMClient(
+        model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base, protocol=cfg.protocol or None
+    )
     return await llm.complete(messages), chunks
 
 

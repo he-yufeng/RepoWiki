@@ -92,11 +92,32 @@ repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen /
 repowiki scan . -m gpt               # or pass a model directly
 ```
 
+The `qwen`, `kimi` and `glm` aliases route through each vendor's native litellm provider (`dashscope/`, `moonshot/`, `zai/`), so they want that vendor's own key. They used to carry an `openai/` prefix, which litellm resolves to platform.openai.com and then rejects.
+
+### OpenAI-compatible and Anthropic-compatible gateways
+
+Point RepoWiki at any gateway by the wire protocol it speaks — no vendor list to memorise, no litellm prefix to guess:
+
+```bash
+repowiki scan . -m qwen3.8-flash \
+  --api-base https://gateway.example.com/compatible-mode/v1 \
+  --protocol chat_completions
+```
+
+| `--protocol` | request shape | Base URL convention | model list |
+| --- | --- | --- | --- |
+| `chat_completions` | `POST {base}/chat/completions` | ends in `/v1` | `GET {base}/models` |
+| `anthropic_messages` | `POST {base}/v1/messages` | bare root | `GET {base}/v1/models` — most gateways expose none |
+
+The Base URL is normalised per protocol (a missing `/v1` is added, a trailing `/v1` on an Anthropic-style base is stripped), which removes the `/v1/v1` and missing-`/v1` 404s. A bare model id gains the protocol's litellm prefix; an already-prefixed one (`dashscope/qwen3.5-plus`) is passed through untouched.
+
+The web UI walks through the same thing in three steps — endpoint, model (keep a built-in preset, discover the gateway's list, or type an id when it exposes none), verify (pings only the model you selected; a preset routes through the aliases above, so there is nothing to probe). `max_tokens` is derived from the model's real output window rather than hard-coded.
+
 ## Configuration
 
 RepoWiki looks for config in this order:
-1. CLI flags (`-m`, `-l`, `-o`)
-2. Environment variables (`REPOWIKI_MODEL`, `REPOWIKI_API_KEY`)
+1. CLI flags (`-m`, `-l`, `-o`, `--api-base`, `--protocol`)
+2. Environment variables (`REPOWIKI_MODEL`, `REPOWIKI_API_KEY`, `REPOWIKI_API_BASE`, `REPOWIKI_PROTOCOL`)
 3. Config file (`~/.repowiki/config.json`)
 4. Provider-specific env vars (`DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
 

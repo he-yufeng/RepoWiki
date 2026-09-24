@@ -10,6 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Header
 from fastapi.responses import StreamingResponse
 
 from repowiki.config import Config, resolve_model
+from repowiki.llm.providers import redact_secret
 from repowiki.server.app import get_cache, get_projects
 from repowiki.server.models import ProjectInfo, ScanRequest
 
@@ -70,6 +71,7 @@ async def _run_scan(project_id: str, req: ScanRequest, user_api_key: str | None)
     projects = get_projects()
     proj = projects[project_id]
     proj["info"].status = "scanning"
+    cfg: Config | None = None
 
     try:
         cfg = Config.load()
@@ -77,10 +79,14 @@ async def _run_scan(project_id: str, req: ScanRequest, user_api_key: str | None)
             cfg.language = req.language
         if req.model:
             cfg.model = resolve_model(req.model)
+        if req.protocol:
+            cfg.protocol = req.protocol
         if user_api_key:
             cfg.api_key = user_api_key
         elif req.api_key:
             cfg.api_key = req.api_key
+        if req.api_base:
+            cfg.api_base = req.api_base
 
         def progress(msg: str):
             proj["progress"].append(msg)
@@ -114,7 +120,12 @@ async def _run_scan(project_id: str, req: ScanRequest, user_api_key: str | None)
         from repowiki.llm.client import LLMClient
 
         cache = get_cache()
-        llm = LLMClient(model=cfg.model, api_key=cfg.api_key, api_base=cfg.api_base)
+        llm = LLMClient(
+            model=cfg.model,
+            api_key=cfg.api_key,
+            api_base=cfg.api_base,
+            protocol=cfg.protocol or None,
+        )
         analyzer = Analyzer(llm=llm, cache=cache, language=cfg.language, concurrency=cfg.concurrency)
 
         wiki_data = await analyzer.analyze(project, on_progress=progress)
@@ -128,6 +139,10 @@ async def _run_scan(project_id: str, req: ScanRequest, user_api_key: str | None)
         progress("Done!")
 
     except Exception as e:
+        # a credential must never survive into a user-visible error string
+        detail = str(e)
+        for secret in (user_api_key, req.api_key, cfg.api_key if cfg else ""):
+            detail = redact_secret(detail, secret or "")
         proj["info"].status = "error"
-        proj["info"].error = str(e)
-        proj["progress"].append(f"Error: {e}")
+        proj["info"].error = detail
+        proj["progress"].append(f"Error: {detail}")
