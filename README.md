@@ -64,6 +64,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 - **Symbol index**: a global index page collects every key symbol the analysis documents, grouped by kind and then by module, with each entry linking back to the module page that owns it. A project with no documented symbols skips the page.
 - **Knowledge cards**: a cards page distills every module to one card — purpose, file count, the symbols and concepts it exposes, its internal links, the entry file to open first, and a jump to the full module page. It is the fastest way to pick a starting point before reading anything longer.
 - **Incremental re-runs**: the output directory keeps a `.repowiki-state.json` mapping each page to the inputs that generated it, so re-scanning only regenerates pages whose source changed and deletes pages of removed modules. JSON and HTML exports skip the write entirely when nothing changed. Pass `--full` to force a full rebuild. Unchanged pages also skip the LLM call itself: analysis results sit in a content-keyed SQLite cache (`~/.repowiki/cache.db`), so a re-scan after a small edit costs no API calls for untouched modules. To auto-refresh on commit, trigger a scan from `.git/hooks/post-commit` (`repowiki scan . --site -o docs/wiki &`) or from CI on push — the caches make that cheap, so no watcher daemon is needed.
+- **Review order for a diff** — `repowiki diff . main...HEAD` ranks a change's files by real importance (repo-wide PageRank plus each file's blast radius: how many files import it), so a reviewer starts where the change actually matters. Deleted files sort last but stay listed; `--format json` hands the same review order to an agent.
 - **Import-aware ranking** — resolves Python and JS/TS imports before ranking files, and skips minified/generated bundles so they don't burn LLM context.
 - **Symbol skeletons for oversized files** — a Python module too big for the per-file context budget used to contribute only its first 4,096 characters. Now the analyzer sees an ast-derived skeleton instead: every top-level class and function with its signature and docstring, so a 2,000-line module is read by structure, not by head.
 - **Honest coverage reporting** — when the scan can't take the whole repo, it says so: the overview page and the CLI both flag partial coverage (files kept vs. candidates, oversized and excluded paths), so a wiki never quietly claims to be complete.
@@ -80,6 +81,7 @@ repowiki scan . -l zh              # Chinese output
 repowiki chat .                    # multi-turn Q&A about the code, remembers the session
 repowiki map .                     # ranked repo map, zero LLM calls
 repowiki map . --format json       # prompt-ready ranked list for agents
+repowiki diff . main...HEAD        # review order for a diff: importance + blast radius
 repowiki scan . --site             # markdown export plus a GitHub Pages-ready loader
 ```
 

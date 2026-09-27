@@ -64,6 +64,7 @@ repowiki serve ./my-project   # 可选：启动时直接加载一个项目
 - **全局符号索引**：索引页汇总分析记录的所有关键符号，先按类别（class、function 等）分组，组内再按模块归类，每个符号都链回所属模块页；没有记录符号的项目不生成该页。
 - **知识卡片**：卡片页把每个模块压成一张卡片——用途一句话、文件数、暴露的符号与关键概念、模块内链接、最先该打开的入口文件，以及通往完整模块页的跳转。在长文档之前先翻一遍卡片，是挑入口最快的方式。
 - **增量重跑**：输出目录里的 `.repowiki-state.json` 记录每个页面由哪些输入生成，再次扫描只重新生成源码有变化的页面，并清理被删模块对应的页面；JSON 和 HTML 导出在内容没有变化时直接不写盘。加 `--full` 可强制全量重建。没变的页面连 LLM 调用都省掉：分析结果存在按内容寻址的 SQLite 缓存里（`~/.repowiki/cache.db`），小改之后重扫对没动的模块零 API 调用。想提交后自动刷新，在 `.git/hooks/post-commit` 里触发一次 `repowiki scan . --site -o docs/wiki &`，或在 CI 里 push 后跑一次——缓存保证了它足够便宜，不需要常驻监听进程。
+- **diff 的评审顺序** — `repowiki diff . main...HEAD` 把一个变更涉及的文件按真实重要性排序（仓库全局 PageRank，外加每个文件的爆炸半径：有多少文件 import 它），评审从真正要紧的地方开始读。被删文件排在最后但不会消失；`--format json` 把同一份评审顺序交给 agent。
 - **import 感知排名** — 先解析 Python 和 JS/TS 的 import 再排名，并跳过 minified/生成式 bundle，避免浪费 LLM 上下文。
 - **超大文件的符号骨架** — 过去超出单文件上下文预算的 Python 模块只贡献前 4096 个字符。现在分析器看到的是 ast 提取的符号骨架：每个顶层类和函数的签名与 docstring，2000 行的模块按结构被读完，而不是按开头被截断。
 - **覆盖率如实标注** — 扫不下整个仓库时绝不装成扫完了：概览页和 CLI 都会明确标出部分覆盖（实际纳入 vs 候选文件数、超大文件与被排除目录），wiki 不会悄悄自称完整。
@@ -80,6 +81,7 @@ repowiki scan . -l zh              # 中文输出
 repowiki chat .                    # 多轮追问的代码问答，本次会话有记忆
 repowiki map .                     # 按真实依赖排序的仓库地图，零 LLM 调用
 repowiki map . --format json       # 给 agent 用的可入 prompt 排序清单
+repowiki diff . main...HEAD        # diff 的评审顺序：重要性 + 爆炸半径
 repowiki scan . --site             # 在 Markdown 导出基础上生成 GitHub Pages 加载页
 ```
 

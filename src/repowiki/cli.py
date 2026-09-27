@@ -108,6 +108,97 @@ def repo_map(path: str, top: int, fmt: str):
     )
 
 
+@cli.command(name="diff")
+@click.argument("path")
+@click.argument("refspec")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+)
+def diff_map(path: str, refspec: str, fmt: str):
+    """Print a review order for a diff: changed files ranked by importance.
+
+    REFSPEC is anything `git diff` takes: main...HEAD, v1.2..v1.4, or a
+    single ref to compare against the worktree. Each changed file gets its
+    repo-wide PageRank plus its blast radius (how many files import it),
+    so a reviewer starts where the change actually matters. Zero LLM calls.
+    """
+    import json
+
+    from repowiki.core.diff import build_diff_report
+    from repowiki.core.graph import DependencyGraph
+    from repowiki.core.models import ProjectContext, ScanReport
+    from repowiki.core.scanner import scan_directory
+
+    if _is_url(path):
+        raise click.UsageError("diff works on local directories only, not URLs")
+
+    with console.status("[bold cyan]Mapping repository..."):
+        report = ScanReport()
+        files = scan_directory(path, report=report)
+        project = ProjectContext(name=path, root=path, files=files)
+        graph = DependencyGraph.build_from_project(project)
+
+    try:
+        diff_report = build_diff_report(path, refspec, graph)
+    except Exception as exc:
+        raise click.UsageError(f"cannot diff '{refspec}' in {path}: {exc}") from exc
+
+    if report.partial:
+        err_console.print(f"[yellow]Partial coverage:[/] {report.summary_line()}")
+
+    entries = [
+        {
+            "path": f.path.replace(os.sep, "/"),
+            "change": f.change,
+            **({"old_path": f.old_path.replace(os.sep, "/")} if f.old_path else {}),
+            "rank": f.rank or None,
+            "score": round(f.score, 6),
+            "direct_dependents": f.direct_dependents,
+            "transitive_dependents": f.transitive_dependents,
+        }
+        for f in diff_report.files
+    ]
+
+    if fmt == "json":
+        payload = {
+            "root": path,
+            "refspec": refspec,
+            "file_count": len(files),
+            "changed": len(entries),
+            "entries": entries,
+        }
+        if report.partial:
+            payload["partial_coverage"] = report.summary_line()
+        console.print_json(json.dumps(payload))
+        return
+
+    table = Table(title=f"Review order: {refspec} in {path} ({len(entries)} changed)")
+    table.add_column("#", justify="right", style="dim", width=4)
+    table.add_column("Chg", width=3)
+    table.add_column("Rank", justify="right", width=6)
+    table.add_column("Blast", justify="right", width=6)
+    table.add_column("Path")
+    for i, e in enumerate(entries):
+        rank = f"#{e['rank']}" if e["rank"] else "-"
+        blast = (
+            str(e["transitive_dependents"])
+            if e["transitive_dependents"] > 0
+            else ("0" if e["change"] != "D" else "-")
+        )
+        shown = e["path"] if not e.get("old_path") else f"{e['old_path']} → {e['path']}"
+        table.add_row(str(i + 1), e["change"], rank, blast, shown)
+    console.print(table)
+    console.print(
+        "[dim]Rank is the repo-wide PageRank position; blast is how many files "
+        "import this one transitively. Deleted files sort last. --format json "
+        "gives agents the same review order.[/dim]"
+    )
+
+
 @cli.command()
 @click.argument("path_or_url")
 @click.option("-o", "--output", default=None, help="Output directory (default: ./wiki)")
