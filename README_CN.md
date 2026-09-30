@@ -90,15 +90,17 @@ repowiki scan . --site             # 在 Markdown 导出基础上生成 GitHub P
 识别 Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby、PHP、Swift 等 30+ 种语言。litellm 的 100+ 提供商都能用，用别名选一个，或直接传模型名：
 
 ```bash
-repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen / kimi / glm ...
+repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen / kimi / glm / mimo ...
 repowiki scan . -m gpt               # 或直接传模型名
 ```
+
+`mimo` 和 `mimo-pro` 别名自带小米端点，有 MiMo API key 就能直接用。其他 OpenAI 兼容端点可以用 `repowiki config set api_base https://your-gateway/v1` 接入。
 
 ## 配置
 
 RepoWiki 按以下顺序查找配置：
 1. 命令行参数（`-m`、`-l`、`-o`）
-2. 环境变量（`REPOWIKI_MODEL`、`REPOWIKI_API_KEY`）
+2. 环境变量（`REPOWIKI_MODEL`、`REPOWIKI_API_KEY`、`REPOWIKI_API_BASE`）
 3. 配置文件（`~/.repowiki/config.json`）
 4. 各提供商专用环境变量（`DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`）
 

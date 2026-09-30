@@ -27,6 +27,15 @@ MODEL_ALIASES = {
     "kimi": "openai/kimi-k2.6",
     "glm": "openai/glm-5",
     "minimax": "openai/MiniMax-M2.7",
+    "mimo": "openai/mimo-v2.6-flash",
+    "mimo-pro": "openai/mimo-v2.6-pro",
+}
+
+# Endpoints for aliases whose vendor speaks OpenAI-compatible HTTP, keyed by
+# resolved model string. Only vendors verified against official docs go here.
+MODEL_API_BASES = {
+    "openai/mimo-v2.6-flash": "https://api.xiaomimimo.com/v1",
+    "openai/mimo-v2.6-pro": "https://api.xiaomimimo.com/v1",
 }
 
 
@@ -75,7 +84,14 @@ class Config:
                     break
 
         cfg.model = resolve_model(cfg.model)
+        cfg.apply_endpoint_defaults()
         return cfg
+
+    def apply_endpoint_defaults(self) -> None:
+        # a vendor endpoint fills in only when the user picked no base of
+        # their own; config file and REPOWIKI_API_BASE always win
+        if not self.api_base:
+            self.api_base = MODEL_API_BASES.get(self.model, "")
 
     def save(self) -> None:
         _CONFIG_DIR.mkdir(parents=True, exist_ok=True)

@@ -239,6 +239,7 @@ def scan(
         cfg.language = lang
     if model:
         cfg.model = resolve_model(model)
+        cfg.apply_endpoint_defaults()
     if output:
         cfg.output_dir = output
 
@@ -476,6 +477,7 @@ def chat(path_or_url: str, model: str | None, lang: str | None):
     cfg = Config.load()
     if model:
         cfg.model = resolve_model(model)
+        cfg.apply_endpoint_defaults()
     if lang:
         cfg.language = lang
 

@@ -90,15 +90,17 @@ repowiki scan . --site             # markdown export plus a GitHub Pages-ready l
 Detects Python, JavaScript, TypeScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, Swift, and 30+ more. Any of litellm's 100+ providers works — pick one with an alias or pass it directly:
 
 ```bash
-repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen / kimi / glm ...
+repowiki config set model deepseek   # deepseek / claude / gpt / gemini / qwen / kimi / glm / mimo ...
 repowiki scan . -m gpt               # or pass a model directly
 ```
+
+The `mimo` and `mimo-pro` aliases ship Xiaomi's endpoint, so a MiMo API key is all you need. Any other OpenAI-compatible endpoint can be pointed at with `repowiki config set api_base https://your-gateway/v1`.
 
 ## Configuration
 
 RepoWiki looks for config in this order:
 1. CLI flags (`-m`, `-l`, `-o`)
-2. Environment variables (`REPOWIKI_MODEL`, `REPOWIKI_API_KEY`)
+2. Environment variables (`REPOWIKI_MODEL`, `REPOWIKI_API_KEY`, `REPOWIKI_API_BASE`)
 3. Config file (`~/.repowiki/config.json`)
 4. Provider-specific env vars (`DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
 
