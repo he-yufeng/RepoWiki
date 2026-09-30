@@ -39,10 +39,12 @@ class Analyzer:
         cache: Cache,
         language: str = "en",
         concurrency: int = 5,
+        max_tokens: int = 4096,
     ):
         self.llm = llm
         self.cache = cache
         self.language = language
+        self.max_tokens = max_tokens
         self._sem = asyncio.Semaphore(concurrency)
         # cache keys embed model + language so switching either one misses the
         # cache instead of serving stale output
@@ -117,7 +119,7 @@ class Analyzer:
                 pass
 
         messages = build_overview_prompt(project.file_tree, key_files, self.language)
-        raw = await self.llm.complete(messages, max_tokens=4096)
+        raw = await self.llm.complete(messages, max_tokens=self.max_tokens)
         data = extract_json(raw)
         if not data or not isinstance(data, dict):
             logger.warning("Failed to parse overview JSON, using defaults")
@@ -213,7 +215,7 @@ class Analyzer:
                     pass
 
             messages = build_module_prompt(name, files_context, project_summary, self.language)
-            raw = await self.llm.complete(messages, max_tokens=4096)
+            raw = await self.llm.complete(messages, max_tokens=self.max_tokens)
             data = extract_json(raw)
             if not data or not isinstance(data, dict):
                 logger.warning("Failed to parse module '%s' JSON", name)
@@ -242,7 +244,7 @@ class Analyzer:
                 pass
 
         messages = build_architecture_prompt(project.file_tree, key_files, self.language)
-        raw = await self.llm.complete(messages, max_tokens=4096)
+        raw = await self.llm.complete(messages, max_tokens=self.max_tokens)
         data = extract_json(raw)
         if not data or not isinstance(data, dict):
             logger.warning("Failed to parse architecture JSON")
@@ -305,7 +307,7 @@ class Analyzer:
                 pass
 
         messages = build_reading_guide_prompt(rankings, module_summaries, self.language)
-        raw = await self.llm.complete(messages, max_tokens=4096)
+        raw = await self.llm.complete(messages, max_tokens=self.max_tokens)
         data = extract_json(raw)
         if not data or not isinstance(data, dict):
             logger.warning("Failed to parse reading guide JSON")

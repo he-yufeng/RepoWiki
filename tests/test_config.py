@@ -57,3 +57,10 @@ def test_other_models_get_no_default_base(monkeypatch):
     monkeypatch.setenv("REPOWIKI_MODEL", "deepseek")
     cfg = Config.load()
     assert cfg.api_base == ""
+
+
+def test_max_tokens_round_trip(tmp_path):
+    cfg = Config()
+    cfg.max_tokens = 8192
+    cfg.save()
+    assert Config.load().max_tokens == 8192

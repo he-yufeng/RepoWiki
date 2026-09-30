@@ -18,9 +18,11 @@ class StubLLM:
     def __init__(self, payload: str = PAYLOAD):
         self.payload = payload
         self.calls: list[list[dict]] = []
+        self.max_tokens_seen: list[int] = []
 
     async def complete(self, messages, max_tokens=4096):
         self.calls.append(messages)
+        self.max_tokens_seen.append(max_tokens)
         return self.payload
 
 
@@ -157,3 +159,23 @@ def test_reading_guide_falls_back_to_scan_order_without_imports(tmp_path):
     rankings = _rankings_block(llm.calls[0])
     assert "README.md" in rankings
     assert "solo.py" in rankings
+
+
+def test_analyzer_passes_configured_max_tokens(tmp_path):
+    # models with a bigger output window were silently truncated at the
+    # hardcoded 4096; the configured value must reach the LLM call
+    async def go():
+        cache = Cache(db_path=tmp_path / "c.db")
+        await cache.init()
+        try:
+            llm = StubLLM()
+            analyzer = Analyzer(llm=llm, cache=cache, max_tokens=8192)
+            await analyzer._generate_overview(
+                _project([_file("a.py", "X = 1\n")]), "files", "tree"
+            )
+            return llm
+        finally:
+            await cache.close()
+
+    llm = _run(go())
+    assert llm.max_tokens_seen == [8192]

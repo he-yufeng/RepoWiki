@@ -313,7 +313,13 @@ async def _run_analysis(
     cache = Cache()
     await cache.init()
 
-    analyzer = Analyzer(llm=llm, cache=cache, language=cfg.language, concurrency=cfg.concurrency)
+    analyzer = Analyzer(
+        llm=llm,
+        cache=cache,
+        language=cfg.language,
+        concurrency=cfg.concurrency,
+        max_tokens=cfg.max_tokens,
+    )
 
     from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -581,6 +587,14 @@ def config_set(key: str, value: str):
         console.print(f"[red]Unknown config key: {key}[/]")
         console.print(f"Valid keys: {', '.join(cfg.__dataclass_fields__.keys())}")
         raise SystemExit(1)
+
+    # int fields would otherwise be persisted as strings and break on load
+    if cfg.__dataclass_fields__[key].type == "int":
+        try:
+            value = int(value)
+        except ValueError:
+            console.print(f"[red]{key} expects an integer, got {value!r}[/]")
+            raise SystemExit(1)
 
     setattr(cfg, key, value)
     cfg.save()

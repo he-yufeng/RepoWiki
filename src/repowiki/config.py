@@ -53,6 +53,7 @@ class Config:
     max_files: int = 1000
     output_dir: str = "./wiki"
     concurrency: int = 5
+    max_tokens: int = 4096
 
     @classmethod
     def load(cls) -> Config:
@@ -100,6 +101,7 @@ class Config:
             "api_key": self.api_key,
             "api_base": self.api_base,
             "language": self.language,
+            "max_tokens": self.max_tokens,
         }
         # don't persist empty values
         data = {k: v for k, v in data.items() if v}
