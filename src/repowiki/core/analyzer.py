@@ -52,6 +52,9 @@ class Analyzer:
         # page id -> cache key used this run; the incremental export compares
         # these against the state file to decide which pages to rewrite
         self.cache_keys: dict[str, str] = {}
+        # modules that fell back to placeholder docs after LLM/parse failures;
+        # surfaced at the end of the run so a half-degraded wiki isn't silent
+        self.degraded_modules: list[str] = []
 
     async def analyze(
         self,
@@ -60,6 +63,7 @@ class Analyzer:
     ) -> WikiData:
         """run the full analysis pipeline and return WikiData."""
         self.cache_keys = {}
+        self.degraded_modules = []
 
         def progress(msg: str):
             if on_progress:
@@ -88,6 +92,13 @@ class Analyzer:
         # 5. generate reading guide (needs module summaries + rankings placeholder)
         progress("Creating reading guide...")
         reading_guide = await self._generate_reading_guide(project, module_docs, tree_hash)
+
+        if self.degraded_modules:
+            logger.warning("Modules with placeholder docs: %s", ", ".join(self.degraded_modules))
+            progress(
+                f"{len(self.degraded_modules)} module(s) fell back to placeholder docs "
+                f"after LLM failures: {', '.join(self.degraded_modules)}"
+            )
 
         progress("Done!")
         return WikiData(
@@ -219,6 +230,7 @@ class Analyzer:
             data = extract_json(raw)
             if not data or not isinstance(data, dict):
                 logger.warning("Failed to parse module '%s' JSON", name)
+                self.degraded_modules.append(name)
                 return ModuleDoc(name=name, purpose=f"Module containing {len(files)} files"), False
 
             # ensure name is present (LLM sometimes omits it)
@@ -227,6 +239,7 @@ class Analyzer:
             try:
                 doc = ModuleDoc(**filtered)
             except Exception:
+                self.degraded_modules.append(name)
                 doc = ModuleDoc(name=name, purpose=data.get("purpose", ""))
             await self.cache.put(cache_key, doc.model_dump())
             return doc, False

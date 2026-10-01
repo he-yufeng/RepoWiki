@@ -179,3 +179,28 @@ def test_analyzer_passes_configured_max_tokens(tmp_path):
 
     llm = _run(go())
     assert llm.max_tokens_seen == [8192]
+
+
+def test_failed_module_analysis_is_surfaced_at_the_end(tmp_path):
+    # an unparseable LLM reply (including the "[LLM Error: ...]" string the
+    # client returns after exhausted retries) means a placeholder doc, and the
+    # run must say so instead of staying silent
+    async def go():
+        cache = Cache(db_path=tmp_path / "c.db")
+        await cache.init()
+        try:
+            llm = StubLLM(payload="[LLM Error: RateLimitError: slow down]")
+            analyzer = Analyzer(llm=llm, cache=cache)
+            steps: list[str] = []
+            wiki = await analyzer.analyze(
+                _project([_file("a.py", "X = 1\n")]), on_progress=steps.append
+            )
+            return analyzer, wiki, steps
+        finally:
+            await cache.close()
+
+    analyzer, wiki, steps = _run(go())
+
+    assert analyzer.degraded_modules == ["root"]
+    assert wiki.modules[0].purpose == "Module containing 1 files"
+    assert any("placeholder" in s and "root" in s for s in steps)

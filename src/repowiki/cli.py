@@ -335,6 +335,13 @@ async def _run_analysis(
 
         wiki_data = await analyzer.analyze(project, on_progress=on_progress)
 
+    # the spinner line is transient, so surface degraded output persistently
+    if analyzer.degraded_modules:
+        console.print(
+            f"[yellow]Warning: {len(analyzer.degraded_modules)} module(s) got placeholder "
+            f"docs after LLM failures: {', '.join(analyzer.degraded_modules)}[/]"
+        )
+
     # export
     from repowiki.core.graph import DependencyGraph
     from repowiki.core.wiki_builder import WikiBuilder
