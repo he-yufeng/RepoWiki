@@ -68,6 +68,7 @@ repowiki serve ./my-project   # 可选：启动时直接加载一个项目
 - **import 感知排名** — 先解析 Python 和 JS/TS 的 import 再排名，并跳过 minified/生成式 bundle，避免浪费 LLM 上下文。
 - **超大文件的符号骨架** — 过去超出单文件上下文预算的 Python 模块只贡献前 4096 个字符。现在分析器看到的是 ast 提取的符号骨架：每个顶层类和函数的签名与 docstring，2000 行的模块按结构被读完，而不是按开头被截断。
 - **覆盖率如实标注** — 扫不下整个仓库时绝不装成扫完了：概览页和 CLI 都会明确标出部分覆盖（实际纳入 vs 候选文件数、超大文件与被排除目录），wiki 不会悄悄自称完整。
+- **LLM 失败也如实** — 限流、断连会自动退避重试；实在分析不出来的模块，跑完时点名警告哪些模块只拿到了占位文档，不会悄悄交付半空的 wiki。
 - **三种导出格式** — 可直接提交的 Markdown 目录、结构化 JSON，或自包含、随手能分享的 HTML 单文件（含图表）。
 - **静态站点发布**：`repowiki scan . --site` 会在 Markdown 导出目录里生成 docsify 加载页（`index.html` 和 `.nojekyll`），把目录推到 GitHub Pages 上就是一个能直接浏览的文档站。
 - **Web 查看器 + 终端问答**：三栏浏览器界面，或 `repowiki chat .` 在终端里做基于源码的问答。问答支持多轮对话：之前的问答会带进每次请求，Web 界面和 CLI 里都能追问。每个回答的来源都精确到行：CLI 在回答下方打印 `文件:起始行-结束行` 的来源尾行，Web 界面里每条引用都能点进文件查看器、直达对应行区间（`/project/<id>/file/<路径>#L120-L140` 这样的链接刷新、转发都有效）。内置 TF-IDF 检索（无需 embedding 服务），索引按文件粒度落盘复用：对没动过的仓库第二次启动直接热启动，改几个文件也只重建这几个文件的分块，不再全量重扫。索引之上还有一层模块卡片通道：分析器写出的卡片带着原始代码没有的自然语言词汇，换种说法提问、和代码零词面重叠时也能借卡片摸到正确的文件；卡片只补漏，不会把直接命中的结果挤出列表。
@@ -120,6 +121,9 @@ RepoWiki/
 │   │   ├── wiki_builder.py # Wiki 页面组装
 │   │   ├── rag.py          # 面向问答的 TF-IDF 检索
 │   │   ├── cache.py        # SQLite 缓存
+│   │   ├── skeleton.py     # 大文件的符号级骨架提取
+│   │   ├── diff.py         # git diff 的审阅顺序排序
+│   │   ├── models.py       # pydantic 数据模型
 │   │   └── state.py        # 增量重生成状态
 │   ├── llm/
 │   │   ├── client.py       # litellm 异步封装
@@ -130,7 +134,8 @@ RepoWiki/
 │   ├── export/
 │   │   ├── markdown.py     # Markdown 目录导出
 │   │   ├── json_export.py  # JSON 导出
-│   │   └── html.py         # 自包含 HTML 导出
+│   │   ├── html.py         # 自包含 HTML 导出
+│   │   └── site.py         # GitHub Pages 站点加载器
 │   └── server/             # FastAPI web 后端
 ├── frontend/               # React + Vite + TailwindCSS
 ├── pyproject.toml
