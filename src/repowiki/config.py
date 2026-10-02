@@ -23,10 +23,10 @@ MODEL_ALIASES = {
     "gpt-mini": "gpt-5.4-mini",
     "gemini": "gemini/gemini-3.1-pro-preview",
     "gemini-flash": "gemini/gemini-2.5-flash",
-    "qwen": "openai/qwen3.5-plus",
-    "kimi": "openai/kimi-k2.6",
-    "glm": "openai/glm-5",
-    "minimax": "openai/MiniMax-M2.7",
+    "qwen": "openai/qwen3.7-plus",
+    "kimi": "openai/kimi-k3",
+    "glm": "openai/glm-5.3",
+    "minimax": "openai/MiniMax-M3",
     "mimo": "openai/mimo-v2.6-flash",
     "mimo-pro": "openai/mimo-v2.6-pro",
 }
@@ -36,6 +36,10 @@ MODEL_ALIASES = {
 MODEL_API_BASES = {
     "openai/mimo-v2.6-flash": "https://api.xiaomimimo.com/v1",
     "openai/mimo-v2.6-pro": "https://api.xiaomimimo.com/v1",
+    "openai/qwen3.7-plus": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "openai/kimi-k3": "https://api.moonshot.ai/v1",
+    "openai/glm-5.3": "https://open.bigmodel.cn/api/paas/v4",
+    "openai/MiniMax-M3": "https://api.minimax.cn/v1",
 }
 
 

@@ -59,6 +59,28 @@ def test_other_models_get_no_default_base(monkeypatch):
     assert cfg.api_base == ""
 
 
+def test_vendor_aliases_resolve():
+    assert resolve_model("qwen") == "openai/qwen3.7-plus"
+    assert resolve_model("kimi") == "openai/kimi-k3"
+    assert resolve_model("glm") == "openai/glm-5.3"
+    assert resolve_model("minimax") == "openai/MiniMax-M3"
+
+
+@pytest.mark.parametrize(
+    "alias, base",
+    [
+        ("qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        ("kimi", "https://api.moonshot.ai/v1"),
+        ("glm", "https://open.bigmodel.cn/api/paas/v4"),
+        ("minimax", "https://api.minimax.cn/v1"),
+    ],
+)
+def test_vendor_aliases_get_endpoints(monkeypatch, alias, base):
+    monkeypatch.setenv("REPOWIKI_MODEL", alias)
+    cfg = Config.load()
+    assert cfg.api_base == base
+
+
 def test_max_tokens_round_trip(tmp_path):
     cfg = Config()
     cfg.max_tokens = 8192
