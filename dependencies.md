@@ -2,40 +2,41 @@
 
 ```mermaid
 graph TD
+  evals[evals] --> repowiki[repowiki]
   tests[tests] --> repowiki[repowiki]
 ```
 
 ## Core Files (by PageRank)
 
-1. `src/repowiki/core/models.py`
+1. [`src/repowiki/core/models.py`](modules/repowiki.md)
 2. `frontend/src/lib/api.ts`
-3. `src/repowiki/core/wiki_builder.py`
-4. `src/repowiki/core/graph.py`
-5. `src/repowiki/core/cache.py`
+3. [`src/repowiki/core/graph.py`](modules/repowiki.md)
+4. [`src/repowiki/core/wiki_builder.py`](modules/repowiki.md)
+5. [`src/repowiki/core/cache.py`](modules/repowiki.md)
 6. `frontend/src/stores/wiki.ts`
-7. `src/repowiki/cli.py`
-8. `src/repowiki/core/scanner.py`
-9. `src/repowiki/core/rag.py`
-10. `src/repowiki/__init__.py`
+7. [`src/repowiki/core/scanner.py`](modules/repowiki.md)
+8. [`src/repowiki/cli.py`](modules/repowiki.md)
+9. [`src/repowiki/core/rag.py`](modules/repowiki.md)
+10. [`src/repowiki/llm/client.py`](modules/repowiki.md)
 
 ## Likely Entry Points
 
 - `frontend/src/App.tsx`
-- `src/repowiki/__main__.py`
+- [`src/repowiki/__main__.py`](modules/repowiki.md)
+- [`evals/run_eval.py`](modules/evals.md)
 - `frontend/src/components/SettingsModal.tsx`
 - `frontend/src/components/WikiContent.tsx`
 - `frontend/src/components/WikiSidebar.tsx`
 - `frontend/src/main.tsx`
 - `frontend/src/pages/ChatView.tsx`
+- `frontend/src/pages/FileView.tsx`
 - `frontend/src/pages/Home.tsx`
-- `frontend/src/pages/WikiView.tsx`
-- `src/repowiki/server/routers/chat.py`
 
 ## Circular Dependencies
 
 These groups of files import each other in a cycle, so you can't fully understand one without the others; consider breaking the loop to reduce coupling.
 
-- `src/repowiki/server/app.py`, `src/repowiki/server/routers/scan.py`
+- [`src/repowiki/server/app.py`](modules/repowiki.md), [`src/repowiki/server/routers/scan.py`](modules/repowiki.md)
 
 ## Isolated Files
 
@@ -43,16 +44,16 @@ These files import nothing in the project and are imported by nothing -- likely 
 
 - [`.env.example`](modules/root.md)
 - [`.github/workflows/ci.yml`](modules/.github.md)
+- [`.github/workflows/demo.yml`](modules/.github.md)
 - [`.github/workflows/publish.yml`](modules/.github.md)
 - [`.gitignore`](modules/root.md)
 - [`LICENSE`](modules/root.md)
 - [`README.md`](modules/root.md)
 - [`README_CN.md`](modules/root.md)
-- `frontend/index.html`
-- `frontend/package-lock.json`
-- `frontend/package.json`
-- `frontend/src/index.css`
-- `frontend/src/vite-env.d.ts`
-- `frontend/tsconfig.json`
-- `frontend/vite.config.ts`
-- [`pyproject.toml`](modules/root.md)
+- [`evals/baseline.json`](modules/evals.md)
+- [`evals/fixtures/modules/grainpipe.json`](modules/evals.md)
+- [`evals/fixtures/modules/relayboard.json`](modules/evals.md)
+- [`evals/fixtures/modules/taskvane.json`](modules/evals.md)
+- [`evals/fixtures/questions.json`](modules/evals.md)
+- `evals/fixtures/repos/grainpipe/README.md`
+- `evals/fixtures/repos/grainpipe/examples/orders.yaml`

@@ -1,41 +1,53 @@
 # root
 
-> Root module for RepoWiki - generates wiki documentation for codebases
+> Project configuration and documentation for RepoWiki, an open-source tool that generates wiki documentation for codebases using LLMs.
 
-Contains core configuration and project metadata for RepoWiki, including environment setup, package configuration, licensing, and multilingual documentation.
+The root module contains essential project configuration files, package metadata, and documentation. It defines the project's dependencies, build settings, and provides user-facing documentation in both English and Chinese. Key files include pyproject.toml for package configuration, README.md for project overview, and .env.example for environment variable setup.
 
 ## Files
 
 ### `.env.example`
 
-Template for environment configuration including LLM API keys and language settings
+Template for environment variables configuration, specifying required API keys and optional settings for LLM providers and output language.
+
+- `OPENAI_API_KEY` (environment_variable) - API key for OpenAI LLM provider
+- `DEEPSEEK_API_KEY` (environment_variable) - API key for DeepSeek LLM provider
+- `ANTHROPIC_API_KEY` (environment_variable) - API key for Anthropic LLM provider
+- `REPOWIKI_MODEL` (environment_variable) - Default LLM model to use (optional)
+- `REPOWIKI_LANG` (environment_variable) - Output language for documentation (en, zh, ja, ko)
 
 ### `README.md`
 
-Primary English documentation with installation, usage, and feature overview
+Primary project documentation in English, featuring installation instructions, feature overview, and usage examples.
 
 ### `pyproject.toml`
 
-Python package configuration including dependencies and build settings
+Python project configuration file defining metadata, dependencies, build settings, and tool configurations.
+
+- `repowiki` (package) - Main package name and entry point configuration
+- [`cli`](repowiki.md) (script) - Command-line interface entry point
+- `web` (dependency_group) - Optional dependencies for web server functionality
 
 ### `.gitignore`
 
-Specifies files/directories to exclude from version control
+Specifies files and directories to be ignored by Git, including build artifacts, virtual environments, and cache files.
 
 ### `LICENSE`
 
-MIT license terms for the project
+MIT license file granting permissions for software use, modification, and distribution.
 
 ### `README_CN.md`
 
-Chinese language version of the documentation
+Chinese translation of the primary README.md, providing localized documentation for Chinese-speaking users.
 
 ## Key Concepts
 
-- **Multi-format output**: Core capability to generate documentation in Markdown, JSON, and HTML formats
-- **Incremental builds**: Tracks state to only regenerate changed documentation
+- **LLM Integration**: Configuration and setup for multiple LLM providers (OpenAI, DeepSeek, Anthropic) to generate documentation
+- **Package Management**: Defines Python package metadata, dependencies, and build process using pyproject.toml and hatchling
+- **Multi-language Support**: Provides documentation in both English and Chinese through README.md and README_CN.md
 
 ## Internal Relationships
 
-- `pyproject.toml` → `README.md`: References README.md as project documentation
-- `.env.example` → `README.md`: Example configuration referenced in README setup instructions
+- `pyproject.toml` → `README.md`: pyproject.toml references README.md as the project's readme file
+- `pyproject.toml` → `.env.example`: pyproject.toml dependencies (like python-dotenv) interact with environment variables defined in .env.example
+- `README.md` → `README_CN.md`: README.md links to README_CN.md for Chinese documentation

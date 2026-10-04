@@ -1,28 +1,30 @@
 # RepoWiki
 
-> Generate wiki documentation for any codebase from your terminal or browser.
+> Generates wiki documentation for codebases using LLMs.
 
-RepoWiki is an open-source tool that automatically generates comprehensive wiki documentation for any codebase. It works by scanning local projects or GitHub repositories, analyzing the code structure, and producing detailed documentation. The tool supports multiple output formats, including Markdown, JSON, and HTML, making it easy to share or integrate the documentation into existing workflows. RepoWiki also includes a web interface and a terminal-based chat feature for interactive Q&A about the codebase. It respects [`.gitignore`](modules/root.md) and `.repowikiignore` files during scans and skips common secret files by default.
+RepoWiki analyzes codebases locally or from GitHub to produce structured wiki documentation. It scans files, uses language models to generate explanations, and outputs Markdown, JSON, or HTML. The tool includes a web interface for browsing and a CLI for scanning and chatting with the documentation. It handles incremental updates and caches results to minimize API calls.
+
+> **Partial coverage:** this wiki was built from 118 of 124 files. Excluded directories: `.pytest_cache`, `dist`, `.ruff_cache`, `.venv`, `.git`. Pages below describe only the scanned subset.
 
 ## Tech Stack
 
 - **Python** 3.10+ (language)
-- **React** 19.2.5 (frontend)
-- **TypeScript** 6.0.2 (frontend)
-- **FastAPI** 0.115.0 (backend)
+- **TypeScript** ES2020 (language)
+- **FastAPI** 0.115.0+ (framework)
+- **React** 19.2.5+ (framework)
+- **Vite** 8.0.8+ (build tool)
 - **SQLite** 3.0+ (database)
 
 ## Key Features
 
-- Structured wiki with project overview, per-module docs, and Mermaid diagrams.
-- Cross-linked pages and symbol index for easy navigation.
-- Incremental re-runs to only regenerate changed pages.
-- Three output formats: Markdown, JSON, and self-contained HTML.
-- Web viewer and terminal chat for interactive Q&A.
+- Generates wiki pages from code analysis
+- Exports to Markdown, JSON, and HTML
+- Includes a web UI and CLI for interaction
+- Supports incremental scans and caching
+- Handles cross-linking between documentation pages
 
 ## Getting Started
 
-1. Install RepoWiki using pip: `pip install repowiki`.
-2. Set your API key: `export DEEPSEEK_API_KEY=<your-api-key>`.
-3. Scan a local project or GitHub repo: `repowiki scan ./my-project` or `repowiki scan https://github.com/pallets/flask`.
-4. Start the web interface: `pip install repowiki[web]` and `repowiki serve ./my-project`.
+1. Install with pip: pip install repowiki
+2. Set an API key: export DEEPSEEK_API_KEY=your_key or use repowiki config set
+3. Scan a project: repowiki scan ./path-to-project

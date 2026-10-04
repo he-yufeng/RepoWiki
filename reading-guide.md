@@ -1,58 +1,57 @@
 # Reading Guide
 
-This codebase appears to be a documentation generator for code repositories (RepoWiki) with both backend and frontend components. Start with entry points to understand the overall flow, then examine core data models and processing logic, and finally explore the supporting utilities.
+Start by understanding the project's purpose and entry points, then explore core data models and workflows, followed by key processing logic, and finally the frontend and utilities. Focus on how components interact.
 
-## Step 1: Understand the application entry points (~10 min)
+## Step 1: Understand Project Setup and Entry Points (~10 min)
 
-**Files:** `src/repowiki/server/app.py`, `frontend/src/App.tsx`
+**Files:** [`src/repowiki/config.py`](modules/repowiki.md), [`src/repowiki/cli.py`](modules/repowiki.md), [`src/repowiki/server/app.py`](modules/repowiki.md)
 
-Look at how the backend server is initialized and routes are defined in app.py, and how the frontend React application is bootstrapped in App.tsx. This gives the high-level structure.
+Look for configuration settings, CLI command structure, and web server entry points to grasp how the tool is configured and launched.
 
-## Step 2: Examine core data models (~15 min)
+## Step 2: Explore Core Data Models (~10 min)
 
-**Files:** `src/repowiki/core/models.py`
+**Files:** [`src/repowiki/core/models.py`](modules/repowiki.md), [`src/repowiki/server/models.py`](modules/repowiki.md)
 
-Study the fundamental data structures in models.py that represent the code documentation being generated. This is the foundation of the application's domain.
+Identify the main data structures used throughout the application, such as wiki pages, code entities, and API request/response models.
 
-## Step 3: Understand the wiki generation pipeline (~20 min)
+## Step 3: Review Code Scanning and Analysis (~15 min)
 
-**Files:** `src/repowiki/core/wiki_builder.py`, `src/repowiki/core/scanner.py`, `src/repowiki/core/analyzer.py`
+**Files:** [`src/repowiki/core/scanner.py`](modules/repowiki.md), [`src/repowiki/core/analyzer.py`](modules/repowiki.md)
 
-Trace the main documentation generation flow through these files to see how code is scanned, analyzed, and converted to wiki format.
+Understand how the codebase scans and analyzes source files to extract information for wiki generation.
 
-## Step 4: Learn about graph processing (~15 min)
+## Step 4: Examine Wiki Generation Logic (~15 min)
 
-**Files:** `src/repowiki/core/graph.py`
+**Files:** [`src/repowiki/core/wiki_builder.py`](modules/repowiki.md), [`src/repowiki/core/skeleton.py`](modules/repowiki.md)
 
-Examine how code relationships are modeled as graphs, which appears to be a key feature of the documentation system.
+Look at how the wiki content is structured and built, including the creation of page skeletons and content assembly.
 
-## Step 5: Review LLM integration (~20 min)
+## Step 5: Study LLM Integration and RAG (~15 min)
 
-**Files:** `src/repowiki/llm/client.py`, `src/repowiki/llm/prompts.py`, `src/repowiki/core/rag.py`
+**Files:** [`src/repowiki/llm/client.py`](modules/repowiki.md), [`src/repowiki/core/rag.py`](modules/repowiki.md)
 
-Understand how the system interacts with language models for documentation generation, including prompt engineering and retrieval-augmented generation.
+Focus on how LLMs are called and how retrieval-augmented generation is used to enhance documentation.
 
-## Step 6: Explore the frontend API layer (~15 min)
+## Step 6: Inspect Graph and Caching Mechanisms (~10 min)
 
-**Files:** `frontend/src/lib/api.ts`, `frontend/src/stores/wiki.ts`
+**Files:** [`src/repowiki/core/graph.py`](modules/repowiki.md), [`src/repowiki/core/cache.py`](modules/repowiki.md)
 
-See how the frontend communicates with the backend through the API client and state management for wiki content.
+Understand the graph structure for code relationships and caching strategies to optimize performance.
 
-## Step 7: Examine export formats (~10 min)
+## Step 7: Review Frontend Integration (~10 min)
 
-**Files:** `src/repowiki/export/markdown.py`, `src/repowiki/export/html.py`
+**Files:** `frontend/src/lib/api.ts`, `frontend/src/stores/wiki.ts`, `frontend/src/components/MermaidDiagram.tsx`
 
-Look at how the system outputs documentation in different formats (Markdown and HTML).
+See how the frontend interacts with the backend API, manages state, and displays diagrams.
 
-## Step 8: Review CLI interface (~10 min)
+## Step 8: Check Export and Ingest Modules (~10 min)
 
-**Files:** `src/repowiki/cli.py`
+**Files:** [`src/repowiki/export/markdown.py`](modules/repowiki.md), [`src/repowiki/export/html.py`](modules/repowiki.md), [`src/repowiki/ingest/local.py`](modules/repowiki.md)
 
-Understand the command-line interface for running the documentation generator.
+Look at how wikis are exported to different formats and how local codebases are ingested.
 
 ## Tips
 
-- The system appears to use a pipeline architecture - look for how data flows between scanning, analysis, and generation stages
-- Pay attention to how the graph structure is used throughout the system for representing code relationships
-- The frontend seems relatively lightweight compared to the backend processing logic
-- Look for configuration points where users can customize documentation generation
+- Pay attention to how data flows from scanning to wiki generation.
+- Note the use of caching to avoid redundant LLM calls.
+- Check the frontend components for visualization of code relationships.
