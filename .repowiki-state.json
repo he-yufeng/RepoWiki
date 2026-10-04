@@ -4,40 +4,40 @@
   "language": "en",
   "pages": {
     "index": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:overview:366055476cabd6c3d680f17b|page:d76d07399da2b8f9b5ec8d9e"
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:overview:366055476cabd6c3d680f17b|page:b525c82234bf794016747f45"
     },
     "architecture": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:arch:366055476cabd6c3d680f17b|page:af13164779e044dbbab8e37b"
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:arch:366055476cabd6c3d680f17b|page:7ffd652e6680dfeffde6e756"
     },
     "cards": {
-      "inputs": "|page:67e30b7fe5bb5a2ce07df1bc"
-    },
-    "modules/repowiki": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:repowiki:2515d97d8acf38442d158b95|page:e5055e6bf54a1f4f48f5cb51"
+      "inputs": "|page:07642b0921d5c73a9c8999fb"
     },
     "modules/tests": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:tests:52c86dc1fd2d5f360350c844|page:d66ae12316b621195046fbd5"
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:tests:52c86dc1fd2d5f360350c844|page:af3195b2c8143c89dd342203"
     },
     "modules/frontend": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:frontend:a6b129b37cbfa594b67cf068|page:d24efd7cdf4e099fa8cecc2f"
-    },
-    "modules/evals": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:evals:a77a85df0bbfa1de76c5f93f|page:94d8278429c1fc9d1cf4d949"
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:frontend:a6b129b37cbfa594b67cf068|page:13ce97c38c4501e073755431"
     },
     "modules/root": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:root:7a0b47bd1c97197aa8d64001|page:739c64e7e7095ac35c1b8f82"
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:root:7a0b47bd1c97197aa8d64001|page:85b0a24b692ee4a05139dc60"
     },
     "modules/.github": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:.github:441addf1f820c52158ae76a3|page:33638c8f63c75ef6669852b8"
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:.github:441addf1f820c52158ae76a3|page:2c2fb39ecea75d2c767dc913"
+    },
+    "modules/evals": {
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:evals:a77a85df0bbfa1de76c5f93f|page:ffcdb97d5aa4b62054810c3a"
+    },
+    "modules/repowiki": {
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:module:repowiki:2515d97d8acf38442d158b95|page:b8312bd7edb2a096cdd23549"
     },
     "reading-guide": {
-      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:guide:366055476cabd6c3d680f17b:b9381b3a1bff470030f7ebc1|page:f52c02a9633777db6967ee48"
+      "inputs": "openrouter/deepseek/deepseek-chat-v3.1:en:guide:366055476cabd6c3d680f17b:d0d77e5e65c2c1a8a46939c6|page:fadd923662f7dc7bfc687577"
     },
     "dependencies": {
-      "inputs": "|page:312c9b174599b47bb95809bf"
+      "inputs": "|page:39365909bcbc887967ec113d"
     },
     "symbols": {
-      "inputs": "|page:90d23ef54287f5fefdc9d37e"
+      "inputs": "|page:d0cd7e8ad8d1e5603f5d4edb"
     }
   }
 }

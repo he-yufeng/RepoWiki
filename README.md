@@ -2,34 +2,36 @@
 
 # RepoWiki
 
-> Generates wiki documentation for codebases using LLMs.
+> Generates wiki documentation for codebases using AI analysis.
 
-RepoWiki analyzes codebases locally or from GitHub to produce structured wiki documentation. It scans files, uses language models to generate explanations, and outputs Markdown, JSON, or HTML. The tool includes a web interface for browsing and a CLI for scanning and chatting with the documentation. It handles incremental updates and caches results to minimize API calls.
+RepoWiki is an open-source tool that automatically creates comprehensive wiki documentation for any codebase. It analyzes source code using LLMs to generate structured documentation including project overviews, module descriptions, architecture diagrams, and cross-linked pages. The tool works with both local repositories and GitHub URLs, and can export documentation in multiple formats including Markdown, JSON, and self-contained HTML. It includes features like incremental scanning to avoid redundant API calls, a web interface for browsing documentation, and a chat interface for asking questions about the codebase. The system uses SQLite for caching and state management, making it lightweight and easy to deploy without complex infrastructure.
 
-> **Partial coverage:** this wiki was built from 118 of 124 files. Excluded directories: `.pytest_cache`, `dist`, `.ruff_cache`, `.venv`, `.git`. Pages below describe only the scanned subset.
+> **Partial coverage:** this wiki was built from 118 of 124 files. Excluded directories: `.git`. Pages below describe only the scanned subset.
 
 ## Tech Stack
 
 - **Python** 3.10+ (language)
-- **TypeScript** ES2020 (language)
-- **FastAPI** 0.115.0+ (framework)
-- **React** 19.2.5+ (framework)
-- **Vite** 8.0.8+ (build tool)
+- **FastAPI** 0.115.0+ (web framework)
+- **React** 19.2.5+ (frontend)
+- **TypeScript** 6.0.2+ (frontend)
 - **SQLite** 3.0+ (database)
+- **LiteLLM** 1.40.0+ (LLM client)
 
 ## Key Features
 
-- Generates wiki pages from code analysis
-- Exports to Markdown, JSON, and HTML
-- Includes a web UI and CLI for interaction
-- Supports incremental scans and caching
-- Handles cross-linking between documentation pages
+- AI-powered code analysis and documentation generation
+- Multiple export formats (Markdown, JSON, HTML)
+- Incremental scanning with SQLite caching
+- Web interface for browsing documentation
+- Chat interface for codebase questions
+- Cross-linked documentation pages
+- Support for local and GitHub repositories
 
 ## Getting Started
 
-1. Install with pip: pip install repowiki
-2. Set an API key: export DEEPSEEK_API_KEY=your_key or use repowiki config set
-3. Scan a project: repowiki scan ./path-to-project
+1. pip install repowiki
+2. Set API key: export DEEPSEEK_API_KEY=your_key
+3. Scan a project: repowiki scan ./my-project
 
 ## Contents
 
@@ -37,12 +39,12 @@ RepoWiki analyzes codebases locally or from GitHub to produce structured wiki do
 - [Architecture](architecture.md)
 - [Knowledge Cards](cards.md)
 - **Modules**
-  - [repowiki](modules/repowiki.md)
   - [tests](modules/tests.md)
   - [frontend](modules/frontend.md)
-  - [evals](modules/evals.md)
   - [root](modules/root.md)
   - [.github](modules/.github.md)
+  - [evals](modules/evals.md)
+  - [repowiki](modules/repowiki.md)
 - [Reading Guide](reading-guide.md)
 - [Dependencies](dependencies.md)
 - [Symbol Index](symbols.md)

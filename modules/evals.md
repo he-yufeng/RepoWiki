@@ -1,46 +1,46 @@
 # evals
 
-> Evaluates retrieval-augmented generation (RAG) performance for code documentation by testing if LLMs can correctly identify source files based on natural language questions.
+> Evaluates code documentation retrieval accuracy using fixture repositories and predefined questions.
 
-The evals module contains test fixtures (three sample repositories: grainpipe, relayboard, taskvane) with known file structures and predefined questions. It runs evaluations to measure how well documentation systems can retrieve the correct source files when given questions about functionality. The module compares results against a baseline to measure performance improvements.
+The evals module contains test fixtures and evaluation logic to measure how well an AI system can retrieve the correct source files when asked questions about code functionality. It includes three sample repositories (grainpipe, relayboard, taskvane) with complete implementations, module documentation files describing their architecture, and question sets with expected answers.
 
 ## Files
 
-### `evals/run_eval.py`
-
-Main evaluation runner that processes questions, checks file retrieval accuracy, and generates performance reports.
-
-- `run_eval` (function) - Executes the evaluation by matching questions to expected files and calculating accuracy metrics
-- `EvalReport` (class) - Stores and calculates evaluation results including overall and per-repository scores
-
 ### `evals/baseline.json`
 
-Stores reference performance scores (1.0 perfect scores) for comparison against new evaluation runs.
+Stores perfect accuracy scores (1.0) for all repositories as a benchmark
+
+- `overall` (field) - Overall accuracy score across all repositories
+- `repos` (field) - Individual repository accuracy scores
+- `boosted` (field) - Enhanced accuracy scores using improved retrieval methods
 
 ### `evals/fixtures/questions.json`
 
-Contains the evaluation questions with expected file answers for each repository.
+Contains evaluation questions with expected file answers for each repository
 
-### `evals/fixtures/modules/grainpipe.json`
+- `repo` (field) - Which repository the question targets
+- `question` (field) - The question text asking about code functionality
+- `expect_files` (field) - Expected correct source file paths for the answer
+- `tier` (field) - Question difficulty level (paraphrase questions use different wording)
 
-Defines the modular structure of grainpipe repository for documentation generation.
+### `evals/run_eval.py`
 
-### `evals/fixtures/modules/relayboard.json`
+Main evaluation runner that tests retrieval accuracy against fixture questions
 
-Defines the modular structure of relayboard repository for documentation generation.
-
-### `evals/fixtures/modules/taskvane.json`
-
-Defines the modular structure of taskvane repository for documentation generation.
+- `run_eval` (function) - Executes the evaluation and returns accuracy results
+- `EvalReport` (class) - Stores and calculates evaluation metrics
+- `CaseResult` (class) - Represents the result of a single question evaluation
+- `print_report` (function) - Displays evaluation results comparing against baseline
 
 ## Key Concepts
 
-- **Retrieval Evaluation**: Measures how accurately a system can retrieve the correct source files when given natural language questions about code functionality
-- **Fixture Repositories**: Three sample codebases (grainpipe, relayboard, taskvane) that serve as test cases with known structures and expected answers
-- **Baseline Comparison**: Performance is measured against predefined perfect scores to evaluate improvement over previous versions
+- **Fixture Repositories**: Three complete, working codebases (grainpipe ETL tool, relayboard kanban API, taskvane CLI task manager) that serve as test subjects for the evaluation
+- **Retrieval Accuracy**: The primary metric measuring how often the system correctly identifies which source file contains the answer to a given question
+- **Question Tiers**: Questions are categorized by difficulty - direct questions use terminology from the code, while paraphrase questions rephrase concepts using different vocabulary
+- **Module Documentation**: JSON files that describe each repository's architecture, mapping functional areas to their implementing source files
 
 ## Internal Relationships
 
-- `evals/run_eval.py` → `evals/fixtures/questions.json`: Uses questions.json as input data for evaluation tests
-- `evals/run_eval.py` → `evals/baseline.json`: Compares evaluation results against baseline scores for performance measurement
-- `evals/fixtures/modules/*.json` → `evals/fixtures/repos/`: Describes the modular structure of the corresponding repository fixtures
+- `evals/run_eval.py` → `evals/fixtures/questions.json`: run_eval reads questions.json to get the evaluation test cases
+- `evals/run_eval.py` → `evals/baseline.json`: print_report compares evaluation results against baseline.json scores
+- `evals/fixtures/modules/*.json` → `evals/fixtures/repos/*`: Module documentation files describe the structure and purpose of the fixture repositories
