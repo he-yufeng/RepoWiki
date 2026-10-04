@@ -1,0 +1,48 @@
+name: Refresh demo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install repowiki
+        run: pip install .
+
+      - name: Check the LLM key is configured
+        env:
+          DEMO_LLM_API_KEY: ${{ secrets.DEMO_LLM_API_KEY }}
+        run: |
+          if [ -z "$DEMO_LLM_API_KEY" ]; then
+            echo "Set the DEMO_LLM_API_KEY repo secret (any OpenRouter-compatible key) before running this."
+            exit 1
+          fi
+
+      - name: Generate the demo wiki
+        env:
+          REPOWIKI_API_KEY: ${{ secrets.DEMO_LLM_API_KEY }}
+          REPOWIKI_MODEL: ${{ vars.DEMO_LLM_MODEL || 'openrouter/deepseek/deepseek-chat-v3.1' }}
+        run: repowiki scan . -o demo -f markdown --site
+
+      - name: Publish to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git worktree add _site origin/gh-pages
+          rsync -a --delete --exclude=.git demo/ _site/
+          cd _site
+          git add -A
+          git diff --cached --quiet || git commit -m "Refresh demo from main (${GITHUB_SHA::7})"
+          git push origin HEAD:gh-pages
