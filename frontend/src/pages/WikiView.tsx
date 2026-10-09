@@ -60,6 +60,8 @@ export default function WikiView() {
         onNavigate={(pageId) => setCurrentPage(pageId)}
         onChat={() => navigate(`/project/${id}/chat`)}
         onHome={() => navigate("/")}
+        onMap={() => navigate(`/project/${id}/map`)}
+        onDiff={() => navigate(`/project/${id}/diff`)}
       />
 
       {/* main content */}

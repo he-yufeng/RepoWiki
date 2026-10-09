@@ -138,3 +138,51 @@ export function streamChat(
     onDone();
   });
 }
+
+export interface MapEntry {
+  rank: number;
+  path: string;
+  score: number;
+  language: string;
+  lines: number;
+}
+
+export interface RepoMap {
+  root: string;
+  file_count: number;
+  entries: MapEntry[];
+  error?: string;
+}
+
+export async function getRepoMap(projectId: string, top = 50): Promise<RepoMap> {
+  const res = await fetch(`${BASE}/project/${projectId}/map?top=${top}`, { headers: getHeaders() });
+  return res.json();
+}
+
+export interface DiffEntry {
+  path: string;
+  change: string; // M / A / D / R
+  old_path?: string;
+  rank: number | null; // position in the repo-wide PageRank order; null = unranked
+  score: number;
+  direct_dependents: number;
+  transitive_dependents: number;
+}
+
+export interface DiffReview {
+  root: string;
+  refspec: string;
+  file_count: number;
+  changed: number;
+  entries: DiffEntry[];
+  error?: string;
+}
+
+export async function getDiffReview(projectId: string, refspec: string): Promise<DiffReview> {
+  const res = await fetch(`${BASE}/project/${projectId}/diff`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ refspec }),
+  });
+  return res.json();
+}

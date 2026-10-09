@@ -7,9 +7,11 @@ interface Props {
   onNavigate: (pageId: string) => void;
   onChat: () => void;
   onHome: () => void;
+  onMap?: () => void;
+  onDiff?: () => void;
 }
 
-export default function WikiSidebar({ sidebar, currentPageId, projectName, onNavigate, onChat, onHome }: Props) {
+export default function WikiSidebar({ sidebar, currentPageId, projectName, onNavigate, onChat, onHome, onMap, onDiff }: Props) {
   return (
     <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col h-full shrink-0">
       <div className="px-4 py-4 border-b border-slate-200">
@@ -55,7 +57,27 @@ export default function WikiSidebar({ sidebar, currentPageId, projectName, onNav
         ))}
       </nav>
 
-      <div className="border-t border-slate-200 p-3">
+      <div className="border-t border-slate-200 p-3 space-y-2">
+        {(onMap || onDiff) && (
+          <div className="flex gap-2">
+            {onMap && (
+              <button
+                onClick={onMap}
+                className="flex-1 px-2 py-1.5 border border-slate-300 text-slate-600 rounded-md text-xs font-medium hover:bg-slate-100 transition-colors"
+              >
+                Repo Map
+              </button>
+            )}
+            {onDiff && (
+              <button
+                onClick={onDiff}
+                className="flex-1 px-2 py-1.5 border border-slate-300 text-slate-600 rounded-md text-xs font-medium hover:bg-slate-100 transition-colors"
+              >
+                Diff Review
+              </button>
+            )}
+          </div>
+        )}
         <button
           onClick={onChat}
           className="w-full px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"

@@ -41,3 +41,8 @@ class FileReference(BaseModel):
     line_start: int = 0
     line_end: int = 0
     snippet: str = ""
+
+
+class DiffRequest(BaseModel):
+    # anything `git diff` accepts: HEAD, HEAD~3, main...feature, a sha, ...
+    refspec: str = "HEAD"

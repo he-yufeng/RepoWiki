@@ -71,7 +71,7 @@ RepoWiki respects `.gitignore` and `.repowikiignore` during scans. It also skips
 - **Failure-honest LLM calls** — rate limits and connection drops get retried with backoff; if a module still can't be analyzed, the run ends with a warning naming every placeholder module instead of quietly shipping a half-empty wiki.
 - **Three output formats** — a Markdown directory to commit, structured JSON, or a self-contained HTML file to share (diagrams included).
 - **Static site publishing**: `repowiki scan . --site` drops a docsify loader (`index.html` + `.nojekyll`) into the Markdown export, so the output directory can go straight onto GitHub Pages.
-- **Web viewer + terminal chat**: a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal. Chat is multi-turn: the conversation so far goes into each prompt, so follow-up questions work in both the web UI and the CLI. Every answer carries its sources at line precision: the CLI prints a `file:start-end` footer under each reply, and the web UI links each reference into a file viewer that opens the exact line range (`/project/<id>/file/<path>#L120-L140`-style links survive refresh and sharing). The built-in TF-IDF index (no embeddings service) persists across runs and reuses per-file chunks, so a second session on an unchanged repo starts warm and an edit to a few files rebuilds only their chunks instead of the whole index.
+- **Web viewer + terminal chat**: a three-column browser UI, or `repowiki chat .` for grounded Q&A in the terminal. Chat is multi-turn: the conversation so far goes into each prompt, so follow-up questions work in both the web UI and the CLI. Every answer carries its sources at line precision: the CLI prints a `file:start-end` footer under each reply, and the web UI links each reference into a file viewer that opens the exact line range (`/project/<id>/file/<path>#L120-L140`-style links survive refresh and sharing). The zero-LLM analyses are in the web UI too: the sidebar's Repo Map and Diff Review buttons serve the same ranked map and review order the CLI prints, each row linking into the file viewer. A repo scanned from a URL is cached as a shallow clone, so diff refspecs there only reach the shallow history; scan a local full clone to diff arbitrary ranges. The built-in TF-IDF index (no embeddings service) persists across runs and reuses per-file chunks, so a second session on an unchanged repo starts warm and an edit to a few files rebuilds only their chunks instead of the whole index.
 - **CLI-first** — no Docker, no database server, no browser required.
 
 ```bash
@@ -184,7 +184,7 @@ retrieval change.
 
 ## Roadmap
 
-Generation, the web interface, and the diagrams work, pages link to each other, re-runs only regenerate the pages whose source changed, and `scan --site` exports a GitHub Pages-ready site. The next step is richer diagrams:
+Generation, the web interface, and the diagrams work, pages link to each other, re-runs only regenerate the pages whose source changed, `scan --site` exports a GitHub Pages-ready site, and the repo map plus diff review order run in both the CLI and the web UI. The next step is richer diagrams:
 
 - **More diagram types** — a call graph and a data-flow view alongside the dependency graph, since the analysis already walks imports and could surface more.
 
