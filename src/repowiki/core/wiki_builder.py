@@ -185,6 +185,15 @@ class WikiBuilder:
             lines.append("## Sequence Diagram\n")
             lines.append(f"```mermaid\n{arch.mermaid_sequence}\n```\n")
 
+        if arch.call_graph:
+            lines.append("## Call Graph\n")
+            lines.append(
+                "Deterministic view built from the Python AST: who calls whom, "
+                "resolved within the project. Cross-file edges follow explicit "
+                "imports; dynamic dispatch is out of scope.\n"
+            )
+            lines.append(f"```mermaid\n{arch.call_graph}\n```\n")
+
         if arch.data_flow:
             lines.append("## Data Flow\n")
             lines.append(f"{arch.data_flow}\n")

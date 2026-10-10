@@ -184,9 +184,9 @@ retrieval change.
 
 ## Roadmap
 
-Generation, the web interface, and the diagrams work, pages link to each other, re-runs only regenerate the pages whose source changed, `scan --site` exports a GitHub Pages-ready site, and the repo map plus diff review order run in both the CLI and the web UI. The next step is richer diagrams:
+Generation, the web interface, and the diagrams work, pages link to each other, re-runs only regenerate the pages whose source changed, `scan --site` exports a GitHub Pages-ready site, and the repo map plus diff review order run in both the CLI and the web UI. A deterministic Python call graph now ships in the architecture page, derived from the AST rather than the model. The next step is richer diagrams:
 
-- **More diagram types** — a call graph and a data-flow view alongside the dependency graph, since the analysis already walks imports and could surface more.
+- **Data-flow view** — alongside the dependency graph and the call graph, since the analysis already walks imports and could surface more.
 
 ## Related Projects
 

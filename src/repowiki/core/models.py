@@ -131,6 +131,9 @@ class ArchitectureDiagram(BaseModel):
     mermaid_component: str = ""
     mermaid_sequence: str = ""
     data_flow: str = ""
+    # deterministic AST-derived Python call graph (no LLM); empty when the
+    # project has no Python sources or no resolvable in-project calls
+    call_graph: str = ""
 
 
 class ReadingStep(BaseModel):

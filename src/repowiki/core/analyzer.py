@@ -89,6 +89,12 @@ class Analyzer:
         progress("Detecting architecture...")
         architecture = await self._generate_architecture(project, key_files_text, tree_hash)
 
+        # 4b. deterministic call graph from the AST — cheap, never cached, so
+        # it stays correct even when the LLM-written diagram comes from cache
+        from .callgraph import build_call_edges, to_mermaid
+
+        architecture.call_graph = to_mermaid(build_call_edges(project))
+
         # 5. generate reading guide (needs module summaries + rankings placeholder)
         progress("Creating reading guide...")
         reading_guide = await self._generate_reading_guide(project, module_docs, tree_hash)
