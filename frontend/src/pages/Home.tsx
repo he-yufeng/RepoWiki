@@ -11,7 +11,9 @@ export default function Home() {
   const navigate = useNavigate();
 
   async function handleScan() {
-    if (!url.trim()) return;
+    const source = url.trim();
+    if (!source) return;
+    const isUrl = /^(?:https?:\/\/|(?:www\.)?(?:github\.com|gitlab\.com|bitbucket\.org)\/)/i.test(source);
     reset();
     setLoading(true);
 
@@ -22,7 +24,7 @@ export default function Home() {
 
     try {
       const info = await scanProject({
-        url: url.trim(),
+        ...(isUrl ? { url: source } : { path: source }),
         language: settings.language,
         model: settings.model || undefined,
       });
