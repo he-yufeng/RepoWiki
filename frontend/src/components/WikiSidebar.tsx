@@ -10,9 +10,10 @@ interface Props {
   onMap?: () => void;
   onDiff?: () => void;
   onCards?: () => void;
+  onSymbols?: () => void;
 }
 
-export default function WikiSidebar({ sidebar, currentPageId, projectName, onNavigate, onChat, onHome, onMap, onDiff, onCards }: Props) {
+export default function WikiSidebar({ sidebar, currentPageId, projectName, onNavigate, onChat, onHome, onMap, onDiff, onCards, onSymbols }: Props) {
   return (
     <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col h-full shrink-0">
       <div className="px-4 py-4 border-b border-slate-200">
@@ -27,7 +28,7 @@ export default function WikiSidebar({ sidebar, currentPageId, projectName, onNav
           <div key={item.page_id || item.title}>
             {item.page_id ? (
               <button
-                onClick={() => onNavigate(item.page_id)}
+                onClick={() => (item.page_id === "symbols" && onSymbols ? onSymbols() : onNavigate(item.page_id))}
                 className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                   currentPageId === item.page_id
                     ? "bg-blue-50 text-blue-700 font-medium"

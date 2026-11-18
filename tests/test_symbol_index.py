@@ -157,6 +157,26 @@ def test_project_without_symbols_gets_no_index_page():
     assert all(item.page_id != "symbols" for item in wiki.sidebar)
 
 
+def test_structured_symbols_share_markdown_dedup_and_order():
+    symbols = _build().symbols
+    assert [(s.kind, s.module, s.name, s.description, s.page_id) for s in symbols] == [
+        ("function", "alpha", "shared_helper", "", "modules/alpha"),
+        ("function", "beta", "run_beta", "entry point", "modules/beta"),
+        ("function", "beta", "shared_helper", "", "modules/beta"),
+        ("method", "beta", "start", "boots the runner", "modules/beta"),
+        ("class", "alpha", "AlphaEngine", "drives alpha", "modules/alpha"),
+        ("other", "alpha", "VERSION", "", "modules/alpha"),
+    ]
+
+
+def test_project_without_symbols_has_an_empty_structured_index():
+    bare = WikiData(
+        overview=ProjectOverview(name="demo"),
+        modules=[ModuleDoc(name="alpha", files=[FileDoc(path="alpha/core.py")])],
+    )
+    assert _build(bare).symbols == []
+
+
 def test_incremental_export_keeps_index_and_removes_it_when_symbols_go(tmp_path):
     # the index has no LLM cache key, so it rides on the content-hash
     # fallback: byte-identical content is kept, and the page is deleted

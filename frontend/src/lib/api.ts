@@ -159,6 +159,25 @@ export async function getRepoMap(projectId: string, top = 50): Promise<RepoMap> 
   return res.json();
 }
 
+export interface SymbolEntry {
+  name: string;
+  kind: string;
+  description: string;
+  module: string;
+  page_id: string;
+}
+
+export interface SymbolsResponse {
+  project_name: string;
+  symbols: SymbolEntry[];
+  error?: string;
+}
+
+export async function getSymbols(projectId: string): Promise<SymbolsResponse> {
+  const res = await fetch(`${BASE}/project/${projectId}/symbols`, { headers: getHeaders() });
+  return res.json();
+}
+
 export interface ModuleCard {
   name: string;
   purpose: string;

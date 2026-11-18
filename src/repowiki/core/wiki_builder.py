@@ -5,6 +5,7 @@ from __future__ import annotations
 import posixpath
 import re
 from dataclasses import dataclass, field
+from itertools import groupby
 
 from repowiki.core.churn import file_churn, module_hotspots
 from repowiki.core.graph import DependencyGraph, _get_module
@@ -43,6 +44,17 @@ class ModuleCard:
 
 
 @dataclass
+class SymbolEntry:
+    """one symbol in the structured and Markdown indexes."""
+
+    name: str
+    kind: str
+    description: str
+    module: str
+    page_id: str
+
+
+@dataclass
 class SidebarItem:
     title: str
     page_id: str
@@ -55,6 +67,7 @@ class Wiki:
     sidebar: list[SidebarItem] = field(default_factory=list)
     project_name: str = ""
     cards: list[ModuleCard] = field(default_factory=list)
+    symbols: list[SymbolEntry] = field(default_factory=list)
 
     def get_page(self, page_id: str) -> WikiPage | None:
         for p in self.pages:
@@ -144,14 +157,21 @@ class WikiBuilder:
             )
             sidebar.append(SidebarItem(title="Dependencies", page_id="dependencies"))
 
-        # 6. symbol index
-        symbols_md = self._build_symbol_index_page(wiki_data)
+        # 6. symbol index: the structured entries and Markdown share one list
+        symbols = self._collect_symbols(wiki_data)
+        symbols_md = self._build_symbol_index_page(symbols)
         if symbols_md:
             pages.append(WikiPage(id="symbols", title="Symbol Index", content=symbols_md, order=12))
             sidebar.append(SidebarItem(title="Symbol Index", page_id="symbols"))
 
         self._link_pages(pages, wiki_data)
-        return Wiki(pages=pages, sidebar=sidebar, project_name=project.name, cards=cards)
+        return Wiki(
+            pages=pages,
+            sidebar=sidebar,
+            project_name=project.name,
+            cards=cards,
+            symbols=symbols,
+        )
 
     def _link_pages(self, pages: list[WikiPage], wiki_data: WikiData) -> None:
         # index exact symbol names and file paths to the module page owning them;
@@ -423,34 +443,44 @@ class WikiBuilder:
             )
         return "\n".join(lines)
 
-    def _build_symbol_index_page(self, wiki_data: WikiData) -> str:
-        # group every key symbol by kind, then by the module owning it; kind
-        # sections follow first appearance, modules and symbols sort by name.
-        # a project with no documented symbols gets no page at all
-        kinds: dict[str, dict[str, dict[str, str]]] = {}
-        total = 0
+    def _collect_symbols(self, wiki_data: WikiData) -> list[SymbolEntry]:
+        # Keep first-appearance kind order and first description, then sort
+        # modules and names exactly as the Markdown index has always done.
+        kinds: dict[str, dict[str, dict[str, SymbolEntry]]] = {}
         for mod in wiki_data.modules:
             for f in mod.files:
                 for s in f.key_symbols:
                     bucket = kinds.setdefault(s.kind or "other", {}).setdefault(mod.name, {})
                     if s.name not in bucket:
-                        bucket[s.name] = s.description
-                        total += 1
-        if not kinds:
+                        bucket[s.name] = SymbolEntry(
+                            name=s.name,
+                            kind=s.kind or "other",
+                            description=s.description,
+                            module=mod.name,
+                            page_id=f"modules/{mod.name}",
+                        )
+        entries: list[SymbolEntry] = []
+        for modules in kinds.values():
+            for mod_name in sorted(modules):
+                for name in sorted(modules[mod_name]):
+                    entries.append(modules[mod_name][name])
+        return entries
+
+    def _build_symbol_index_page(self, symbols: list[SymbolEntry]) -> str:
+        if not symbols:
             return ""
 
-        module_count = len({name for sections in kinds.values() for name in sections})
+        module_count = len({symbol.module for symbol in symbols})
         lines = ["# Symbol Index\n"]
-        lines.append(f"{total} symbols across {module_count} modules.\n")
-        for kind, modules in kinds.items():
+        lines.append(f"{len(symbols)} symbols across {module_count} modules.\n")
+        for kind, kind_entries in groupby(symbols, key=lambda symbol: symbol.kind):
             lines.append(f"## {kind.capitalize()}\n")
-            for mod_name in sorted(modules):
+            for mod_name, module_entries in groupby(kind_entries, key=lambda symbol: symbol.module):
                 href = _rel_href("symbols", f"modules/{mod_name}")
                 lines.append(f"### [{mod_name}]({href})\n")
-                for sym_name in sorted(modules[mod_name]):
-                    desc = modules[mod_name][sym_name]
-                    suffix = f" - {desc}" if desc else ""
-                    lines.append(f"- [`{sym_name}`]({href}){suffix}")
+                for symbol in module_entries:
+                    suffix = f" - {symbol.description}" if symbol.description else ""
+                    lines.append(f"- [`{symbol.name}`]({href}){suffix}")
                 lines.append("")
         return "\n".join(lines)
 
