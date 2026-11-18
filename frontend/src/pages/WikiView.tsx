@@ -63,6 +63,7 @@ export default function WikiView() {
         onMap={() => navigate(`/project/${id}/map`)}
         onDiff={() => navigate(`/project/${id}/diff`)}
         onCards={() => navigate(`/project/${id}/cards`)}
+        onSymbols={() => navigate(`/project/${id}/symbols`)}
       />
 
       {/* main content */}
