@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { scanProject, streamScanProgress, getWiki } from "../lib/api";
+import { buildScanSourceRequest } from "../lib/sourceInput.mts";
 import { useWikiStore } from "../stores/wiki";
 import SettingsModal from "../components/SettingsModal";
 
@@ -11,7 +12,8 @@ export default function Home() {
   const navigate = useNavigate();
 
   async function handleScan() {
-    if (!url.trim()) return;
+    const sourceRequest = buildScanSourceRequest(url);
+    if (!sourceRequest.url && !sourceRequest.path) return;
     reset();
     setLoading(true);
 
@@ -22,7 +24,7 @@ export default function Home() {
 
     try {
       const info = await scanProject({
-        url: url.trim(),
+        ...sourceRequest,
         language: settings.language,
         model: settings.model || undefined,
       });
@@ -97,6 +99,10 @@ export default function Home() {
               {loading ? "Scanning..." : "Generate Wiki"}
             </button>
           </div>
+
+          <p className="mt-2 text-xs text-slate-500">
+            Local paths are resolved on the server and must be accessible there.
+          </p>
 
           {/* progress display */}
           {scanProgress.length > 0 && (
