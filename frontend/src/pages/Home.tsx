@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { scanProject, streamScanProgress, getWiki } from "../lib/api";
-import { buildScanSourceRequest } from "../lib/sourceInput";
+import { buildScanSourceRequest } from "../lib/sourceInput.mts";
 import { useWikiStore } from "../stores/wiki";
 import SettingsModal from "../components/SettingsModal";
 
