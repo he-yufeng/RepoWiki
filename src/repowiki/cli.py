@@ -7,6 +7,7 @@ import os
 import click
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 from rich.tree import Tree
 
 from repowiki import __version__
@@ -118,7 +119,8 @@ def repo_map(path: str, top: int, fmt: str):
     default="text",
     show_default=True,
 )
-def diff_map(path: str, refspec: str, fmt: str):
+@click.option("--importers", "importer_limit", type=click.IntRange(1, 50), help="Show up to N direct importers per file.")
+def diff_map(path: str, refspec: str, fmt: str, importer_limit: int | None):
     """Print a review order for a diff: changed files ranked by importance.
 
     REFSPEC is anything `git diff` takes: main...HEAD, v1.2..v1.4, or a
@@ -162,6 +164,14 @@ def diff_map(path: str, refspec: str, fmt: str):
         }
         for f in diff_report.files
     ]
+    if importer_limit is not None:
+        for entry, changed in zip(entries, diff_report.files, strict=True):
+            importers = (
+                graph.graph.predecessors(changed.path)
+                if changed.change != "D" and changed.path in graph.graph
+                else ()
+            )
+            entry["direct_importers"] = sorted(path.replace(os.sep, "/") for path in importers)[:importer_limit]
 
     if fmt == "json":
         payload = {
@@ -182,6 +192,8 @@ def diff_map(path: str, refspec: str, fmt: str):
     table.add_column("Rank", justify="right", width=6)
     table.add_column("Blast", justify="right", width=6)
     table.add_column("Path")
+    if importer_limit is not None:
+        table.add_column("Importers")
     for i, e in enumerate(entries):
         rank = f"#{e['rank']}" if e["rank"] else "-"
         blast = (
@@ -190,7 +202,8 @@ def diff_map(path: str, refspec: str, fmt: str):
             else ("0" if e["change"] != "D" else "-")
         )
         shown = e["path"] if not e.get("old_path") else f"{e['old_path']} → {e['path']}"
-        table.add_row(str(i + 1), e["change"], rank, blast, shown)
+        extra = [Text("\n".join(e["direct_importers"]) or "-")] if importer_limit is not None else []
+        table.add_row(str(i + 1), e["change"], rank, blast, shown, *extra)
     console.print(table)
     console.print(
         "[dim]Rank is the repo-wide PageRank position; blast is how many files "

@@ -119,3 +119,37 @@ def test_cli_diff_json(tmp_path):
     assert entry["change"] == "M"
     assert entry["rank"] == 1
     assert entry["transitive_dependents"] == 2
+    assert "direct_importers" not in entry
+
+
+def test_cli_diff_can_list_capped_direct_importers(tmp_path):
+    _make_git_repo(tmp_path)
+    (tmp_path / "core" / "audit.py").write_text("from .cache import warm\n")
+    _git(tmp_path, "add", "core/audit.py")
+    _git(tmp_path, "commit", "-m", "add caller")
+    (tmp_path / "core" / "cache.py").write_text("def warm(): ...\n# changed\n")
+    (tmp_path / "notes.py").unlink()
+
+    result = CliRunner().invoke(
+        cli, ["diff", str(tmp_path), "HEAD", "--format", "json", "--importers", "1"]
+    )
+
+    assert result.exit_code == 0, result.output
+    changed, deleted = json.loads(result.output)["entries"]
+    assert changed["path"] == "core/cache.py"
+    assert changed["direct_dependents"] == 2
+    assert changed["transitive_dependents"] == 3
+    assert changed["direct_importers"] == ["core/audit.py"]
+    assert deleted["path"] == "notes.py" and deleted["direct_importers"] == []
+
+
+def test_cli_diff_shows_importer_paths_in_text_only_on_request(tmp_path):
+    _make_git_repo(tmp_path)
+    (tmp_path / "core" / "cache.py").write_text("def warm(): ...\n# changed\n")
+
+    result = CliRunner().invoke(cli, ["diff", str(tmp_path), "HEAD", "--importers", "5"])
+
+    assert result.exit_code == 0, result.output
+    assert "Importers" in result.output
+    assert "core/store.py" in result.output
+    assert "core/engine.py" not in result.output
