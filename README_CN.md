@@ -84,6 +84,7 @@ repowiki chat .                    # 多轮追问的代码问答，本次会话�
 repowiki map .                     # 按真实依赖排序的仓库地图，零 LLM 调用
 repowiki map . --format json       # 给 agent 用的可入 prompt 排序清单
 repowiki diff . main...HEAD        # diff 的评审顺序：重要性 + 爆炸半径
+repowiki diff . main...HEAD --importers 5  # 每个改动文件最多列出五个直接引用它的文件
 repowiki scan . --site             # 在 Markdown 导出基础上生成 GitHub Pages 加载页
 ```
 

@@ -84,6 +84,7 @@ repowiki chat .                    # multi-turn Q&A about the code, remembers th
 repowiki map .                     # ranked repo map, zero LLM calls
 repowiki map . --format json       # prompt-ready ranked list for agents
 repowiki diff . main...HEAD        # review order for a diff: importance + blast radius
+repowiki diff . main...HEAD --importers 5  # show up to five direct importers per changed file
 repowiki scan . --site             # markdown export plus a GitHub Pages-ready loader
 ```
 
