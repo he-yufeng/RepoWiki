@@ -98,6 +98,14 @@ repowiki trace . src/repowiki/core/graph.py src/repowiki/core/models.py --format
 
 `trace` follows imports from the source file to the target file and returns one shortest chain. Use paths relative to the repository root. It makes no LLM calls and sees only the imports the static scan resolves. With `--format json`, `path` and `hops` are `null` when both files are indexed but no chain is found. An unindexed endpoint is a usage error. If the scan is partial, the warning goes to stderr so stdout remains JSON.
 
+### See what a file affects
+
+```bash
+repowiki impact . src/repowiki/core/models.py --depth 2 --format json
+```
+
+`impact` follows imports in reverse to find which files depend on the target. It lists each importer once, sorted by the number of import hops and then by path. Use `--depth 1` for direct importers or omit it for every reachable importer. JSON includes `dependents` with each `path` and `distance`, plus `direct` and `total` counts within the requested depth. An indexed file with no importers returns an empty list; an unindexed file is a usage error. Like `trace`, this is a local static scan, not a list of runtime callers.
+
 ## Languages & Models
 
 Detects Python, JavaScript, TypeScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, Swift, and 30+ more. Any of litellm's 100+ providers works — pick one with an alias or pass it directly:

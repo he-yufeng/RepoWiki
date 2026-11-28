@@ -54,7 +54,17 @@ def check_installed_trace(wheel):
         assert json.loads(result.stdout) == {
             "source": "entry.py", "target": "leaf.py", "path": ["entry.py", "middle.py", "leaf.py"], "hops": 2,
         }
-    print(json.dumps({"traceExit": result.returncode, "version": repowiki.__version__,
+        impact = subprocess.run(
+            [str(cli), "impact", str(repo), "leaf.py", "--format", "json"],
+            cwd=work, env=env, capture_output=True, text=True, encoding="utf-8", check=True, timeout=20,
+        )
+        assert not impact.stderr, impact.stderr
+        assert json.loads(impact.stdout) == {
+            "file": "leaf.py",
+            "dependents": [{"path": "middle.py", "distance": 1}, {"path": "entry.py", "distance": 2}],
+            "direct": 1, "total": 2,
+        }
+    print(json.dumps({"traceExit": result.returncode, "impactExit": impact.returncode, "version": repowiki.__version__,
                       "wheelSha256": hashlib.sha256(wheel.read_bytes()).hexdigest(), "packageRoot": str(package)}))
 
 

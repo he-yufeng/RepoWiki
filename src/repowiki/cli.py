@@ -109,6 +109,19 @@ def repo_map(path: str, top: int, fmt: str):
     )
 
 
+def _scan_import_graph(repo: str):
+    from repowiki.core.graph import DependencyGraph
+    from repowiki.core.models import ProjectContext, ScanReport
+    from repowiki.core.scanner import scan_directory
+
+    report = ScanReport()
+    files = scan_directory(repo, report=report)
+    graph = DependencyGraph.build_from_project(ProjectContext(name=repo, root=repo, files=files))
+    if report.partial:
+        click.echo(f"Partial coverage: {report.summary_line()}", err=True)
+    return graph, report
+
+
 @cli.command(name="trace")
 @click.argument("repo", type=click.Path(exists=True, file_okay=False))
 @click.argument("source")
@@ -118,16 +131,8 @@ def trace_imports(repo: str, source: str, target: str, fmt: str):
     """Follow imports from SOURCE to TARGET, using paths relative to REPO."""
     import json
 
-    from repowiki.core.graph import DependencyGraph
-    from repowiki.core.models import ProjectContext, ScanReport
-    from repowiki.core.scanner import scan_directory
-
     source, target = (path.replace(os.sep, "/") for path in (source, target))
-    report = ScanReport()
-    files = scan_directory(repo, report=report)
-    graph = DependencyGraph.build_from_project(ProjectContext(name=repo, root=repo, files=files))
-    if report.partial:
-        click.echo(f"Partial coverage: {report.summary_line()}", err=True)
+    graph, report = _scan_import_graph(repo)
     try:
         path = graph.shortest_import_path(source, target)
     except ValueError as exc:
@@ -145,6 +150,41 @@ def trace_imports(repo: str, source: str, target: str, fmt: str):
         click.echo(f"No import path from {source} to {target} in the scanned graph.")
     else:
         click.echo(" -> ".join(path))
+
+
+@cli.command(name="impact")
+@click.argument("repo", type=click.Path(exists=True, file_okay=False))
+@click.argument("file_path", metavar="FILE")
+@click.option("--depth", type=click.IntRange(min=1), help="Only show importers within this many hops.")
+@click.option("--format", "fmt", type=click.Choice(["text", "json"]), default="text", show_default=True)
+def import_impact(repo: str, file_path: str, depth: int | None, fmt: str):
+    """List direct and indirect importers of FILE, relative to REPO."""
+    import json
+
+    file_path = file_path.replace(os.sep, "/")
+    graph, report = _scan_import_graph(repo)
+    try:
+        dependents = graph.impact_of(file_path, max_depth=depth)
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+
+    if fmt == "json":
+        payload = {
+            "file": file_path,
+            "dependents": [{"path": path, "distance": distance} for path, distance in dependents],
+            "direct": sum(distance == 1 for _, distance in dependents),
+            "total": len(dependents),
+        }
+        if report.partial:
+            payload["partial_coverage"] = report.summary_line()
+        click.echo(json.dumps(payload, ensure_ascii=False))
+    elif not dependents:
+        click.echo(f"No file in the scanned graph imports {file_path}.")
+    else:
+        scope = f"within {depth} hop(s)" if depth is not None else "directly or indirectly"
+        click.echo(f"{len(dependents)} files import {file_path} {scope}:")
+        for path, distance in dependents:
+            click.echo(f"  {distance}  {path}")
 
 
 @cli.command(name="diff")
