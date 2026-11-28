@@ -98,6 +98,14 @@ repowiki trace . src/repowiki/core/graph.py src/repowiki/core/models.py --format
 
 `trace` 从起点沿着 import 指向的方向找一条到终点的最短链。两端都用相对仓库根目录的路径。它不调用模型，只看静态扫描能解析出来的导入关系。使用 `--format json` 时，两端都已索引但无链则返回 `path: null`、`hops: null`；任一端未被索引则报用法错误。扫描不完整的提示走 stderr，stdout 仍是合法 JSON。
 
+### 查改动会牵涉哪些文件
+
+```bash
+repowiki impact . src/repowiki/core/models.py --depth 2 --format json
+```
+
+`impact` 沿导入关系反查依赖这个文件的文件。每个文件只列一次，先按最短导入距离、再按路径排序。`--depth 1` 只查直接导入者，不传则追到所有能到达的文件。JSON 的 `dependents` 逐项列出 `path` 和 `distance`，`direct`、`total` 统计指定深度内的直接和全部导入者。目标已索引但无人导入时返回空列表，没索引到则报用法错误。结果只覆盖本地静态扫描能解析的导入关系，不等同于运行时调用链。
+
 ## 语言与模型
 
 识别 Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby、PHP、Swift 等 30+ 种语言。litellm 的 100+ 提供商都能用，用别名选一个，或直接传模型名：

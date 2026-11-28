@@ -92,6 +92,17 @@ class DependencyGraph:
                 return list(reversed(chain))
         return None
 
+    def impact_of(self, path: str, max_depth: int | None = None) -> list[tuple[str, int]]:
+        """Return files that import path, transitively, nearest first."""
+        if path not in self.graph:
+            raise ValueError(f"{path!r} is not indexed")
+
+        distances = nx.single_source_shortest_path_length(self.graph.reverse(copy=False), path, cutoff=max_depth)
+        return sorted(
+            ((node, distance) for node, distance in distances.items() if distance),
+            key=lambda item: (item[1], item[0]),
+        )
+
     def rank_files(self) -> list[tuple[str, float]]:
         """return files ranked by PageRank (most important first)."""
         if not self.graph.nodes:
