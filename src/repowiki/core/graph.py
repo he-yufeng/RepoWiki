@@ -74,6 +74,24 @@ class DependencyGraph:
 
         return dg
 
+    def shortest_import_path(self, source: str, target: str) -> list[str] | None:
+        """Return one shortest importer-to-importee chain, breaking ties by path."""
+        for endpoint in (source, target):
+            if endpoint not in self.graph:
+                raise ValueError(f"{endpoint!r} is not indexed")
+        if source == target:
+            return [source]
+
+        parents: dict[str, str] = {}
+        for parent, child in nx.bfs_edges(self.graph, source, sort_neighbors=sorted):
+            parents[child] = parent
+            if child == target:
+                chain = [target]
+                while chain[-1] != source:
+                    chain.append(parents[chain[-1]])
+                return list(reversed(chain))
+        return None
+
     def rank_files(self) -> list[tuple[str, float]]:
         """return files ranked by PageRank (most important first)."""
         if not self.graph.nodes:
