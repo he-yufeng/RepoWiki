@@ -88,6 +88,16 @@ repowiki diff . main...HEAD --importers 5  # 每个改动文件最多列出五�
 repowiki scan . --site             # 在 Markdown 导出基础上生成 GitHub Pages 加载页
 ```
 
+### 追踪文件间的导入链
+
+在本地 RepoWiki 源码目录运行，也可以换成自己仓库里的文件：
+
+```bash
+repowiki trace . src/repowiki/core/graph.py src/repowiki/core/models.py --format json
+```
+
+`trace` 从起点沿着 import 指向的方向找一条到终点的最短链。两端都用相对仓库根目录的路径。它不调用模型，只看静态扫描能解析出来的导入关系。使用 `--format json` 时，两端都已索引但无链则返回 `path: null`、`hops: null`；任一端未被索引则报用法错误。扫描不完整的提示走 stderr，stdout 仍是合法 JSON。
+
 ## 语言与模型
 
 识别 Python、JavaScript、TypeScript、Go、Rust、Java、Kotlin、C/C++、C#、Ruby、PHP、Swift 等 30+ 种语言。litellm 的 100+ 提供商都能用，用别名选一个，或直接传模型名：

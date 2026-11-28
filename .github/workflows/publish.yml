@@ -38,10 +38,11 @@ jobs:
       - name: Build package
         run: python -m build
 
-      - name: Verify the wheel ships the web UI
+      - name: Verify the installed wheel
         run: |
-          pip install --no-deps --target /tmp/rw-wheel-check dist/*.whl
-          test -f /tmp/rw-wheel-check/repowiki/server/static/index.html
+          python -m venv "$RUNNER_TEMP/rw-wheel-check"
+          "$RUNNER_TEMP/rw-wheel-check/bin/python" -m pip install dist/*.whl
+          "$RUNNER_TEMP/rw-wheel-check/bin/python" -I tests/test_smoke.py dist/*.whl
           python - <<'PY'
           import glob, zipfile
           from collections import Counter

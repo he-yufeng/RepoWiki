@@ -88,6 +88,16 @@ repowiki diff . main...HEAD --importers 5  # show up to five direct importers pe
 repowiki scan . --site             # markdown export plus a GitHub Pages-ready loader
 ```
 
+### Trace an import chain
+
+Run this from a local RepoWiki checkout, or substitute paths from your own repository:
+
+```bash
+repowiki trace . src/repowiki/core/graph.py src/repowiki/core/models.py --format json
+```
+
+`trace` follows imports from the source file to the target file and returns one shortest chain. Use paths relative to the repository root. It makes no LLM calls and sees only the imports the static scan resolves. With `--format json`, `path` and `hops` are `null` when both files are indexed but no chain is found. An unindexed endpoint is a usage error. If the scan is partial, the warning goes to stderr so stdout remains JSON.
+
 ## Languages & Models
 
 Detects Python, JavaScript, TypeScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, Swift, and 30+ more. Any of litellm's 100+ providers works — pick one with an alias or pass it directly:

@@ -109,6 +109,44 @@ def repo_map(path: str, top: int, fmt: str):
     )
 
 
+@cli.command(name="trace")
+@click.argument("repo", type=click.Path(exists=True, file_okay=False))
+@click.argument("source")
+@click.argument("target")
+@click.option("--format", "fmt", type=click.Choice(["text", "json"]), default="text", show_default=True)
+def trace_imports(repo: str, source: str, target: str, fmt: str):
+    """Follow imports from SOURCE to TARGET, using paths relative to REPO."""
+    import json
+
+    from repowiki.core.graph import DependencyGraph
+    from repowiki.core.models import ProjectContext, ScanReport
+    from repowiki.core.scanner import scan_directory
+
+    source, target = (path.replace(os.sep, "/") for path in (source, target))
+    report = ScanReport()
+    files = scan_directory(repo, report=report)
+    graph = DependencyGraph.build_from_project(ProjectContext(name=repo, root=repo, files=files))
+    if report.partial:
+        click.echo(f"Partial coverage: {report.summary_line()}", err=True)
+    try:
+        path = graph.shortest_import_path(source, target)
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+
+    if fmt == "json":
+        payload = {
+            "source": source, "target": target, "path": path,
+            "hops": len(path) - 1 if path is not None else None,
+        }
+        if report.partial:
+            payload["partial_coverage"] = report.summary_line()
+        click.echo(json.dumps(payload, ensure_ascii=False))
+    elif path is None:
+        click.echo(f"No import path from {source} to {target} in the scanned graph.")
+    else:
+        click.echo(" -> ".join(path))
+
+
 @cli.command(name="diff")
 @click.argument("path")
 @click.argument("refspec")
